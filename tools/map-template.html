@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sands of the Forgotten King: a map of every room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ground: #0c1a22;
+  --ground-2: #112430;
+  --rule: #23404d;
+  --ink: #dfeaed;
+  --muted: #8fa8b2;
+  --path: #6f8d98;
+  --a1: #e3a43c;
+  --a2: #e0735a;
+  --a3: #5a98e6;
+  --a4: #3fbfa0;
+  --a5: #ab8be6;
+  --a6: #efe3b4;
+  --danger: #ff6b61;
+  --label: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", "Helvetica Neue", sans-serif;
+  --text: "Source Serif 4", Georgia, "Times New Roman", serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--text);
+  font-size: 16px;
+  line-height: 1.5;
+}
+a { color: inherit; }
+
+.page { max-width: 1240px; margin: 0 auto; padding: 36px 28px 90px; }
+
+header.top { display: grid; grid-template-columns: 1fr auto; gap: 24px 48px; align-items: end; padding-bottom: 22px; border-bottom: 1px solid var(--rule); }
+header.top h1 { font-family: var(--label); font-weight: 600; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.02; margin: 0 0 10px; letter-spacing: .01em; }
+header.top p { margin: 0; max-width: 62ch; color: var(--muted); }
+.controls { display: flex; flex-direction: column; gap: 10px; font-family: var(--label); font-size: 1.05rem; }
+.controls label { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.controls input { width: 18px; height: 18px; accent-color: var(--a1); }
+
+nav.sheets { display: flex; flex-wrap: wrap; gap: 8px 10px; margin: 18px 0 4px; font-family: var(--label); font-size: 1.08rem; }
+nav.sheets a { text-decoration: none; padding: 5px 13px; border: 1.5px solid var(--rule); border-radius: 999px; }
+nav.sheets a:hover, nav.sheets a:focus-visible { border-color: var(--ink); outline: none; }
+nav.sheets a span { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 8px; }
+
+.key { margin: 26px 0 8px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px 30px; font-size: .92rem; color: var(--muted); }
+.key div { display: flex; align-items: center; gap: 12px; }
+.key svg { flex: none; }
+
+.sheet { margin-top: 56px; scroll-margin-top: 20px; }
+.sheet > header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 22px; margin-bottom: 4px; }
+.sheet h2 { font-family: var(--label); font-weight: 600; font-size: 1.9rem; margin: 0; }
+.sheet h2 i { font-style: normal; font-weight: 500; color: var(--muted); font-size: 1.15rem; margin-left: 10px; }
+.sheet p.blurb { margin: 0 0 12px; max-width: 78ch; color: var(--muted); font-size: .98rem; }
+.plan { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--ground-2); }
+.plan svg { display: block; width: 100%; min-width: 760px; height: auto; }
+
+.node { cursor: pointer; outline: none; }
+.node rect.box { transition: fill .12s, stroke-width .12s; }
+.node:hover rect.box, .node:focus-visible rect.box { stroke-width: 3.2; }
+.node:focus-visible rect.ring { opacity: 1; }
+.node text { pointer-events: none; }
+.fade .node.opt { opacity: .32; }
+.fade .node.opt:hover, .fade .node.opt:focus-visible { opacity: 1; }
+.edge { transition: opacity .12s; }
+.dimming .edge:not(.hot) { opacity: .22; }
+.dimming .node:not(.hot) { opacity: .5; }
+
+#tip {
+  position: fixed; z-index: 20; left: 0; top: 0; width: min(400px, calc(100vw - 24px));
+  background: #0a161d; border: 1px solid var(--rule); border-top: 5px solid var(--a1); border-radius: 6px;
+  padding: 14px 16px 15px; box-shadow: 0 14px 34px rgba(0,0,0,.55); pointer-events: none;
+  font-size: .93rem; line-height: 1.5;
+}
+#tip[hidden] { display: none; }
+#tip h3 { font-family: var(--label); font-weight: 600; font-size: 1.4rem; line-height: 1.1; margin: 0 0 2px; }
+#tip .route { font-family: var(--label); font-size: .98rem; color: var(--muted); margin-bottom: 8px; }
+#tip .lead { margin: 0 0 8px; }
+#tip dl { margin: 8px 0 0; }
+#tip dt { font-family: var(--label); font-weight: 600; font-size: 1rem; margin-top: 7px; color: var(--ink); }
+#tip dd { margin: 1px 0 0; color: #c5d4d9; }
+#tip dd ul { margin: 0; padding-left: 18px; }
+#tip dd li { margin: 1px 0; }
+#tip .danger dt, #tip .danger dd { color: var(--danger); }
+#tip .pts { font-variant-numeric: tabular-nums; }
+
+footer.end { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--rule); color: var(--muted); font-size: .9rem; max-width: 78ch; }
+@media (max-width: 760px) { header.top { grid-template-columns: 1fr; } .page { padding: 24px 14px 70px; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <div>
+      <h1>Sands of the Forgotten King</h1>
+      <p>A plan of all fifty-one rooms, with what happens in each. Hover over a room, or tab to it, to see what it involves; tap on a phone. Every secret is on this page, so it is a reference for the author and not for a first play.</p>
+    </div>
+    <div class="controls">
+      <label><input type="checkbox" id="fade"> Fade the optional rooms</label>
+    </div>
+  </header>
+  <nav class="sheets" id="nav"></nav>
+  <section class="key" id="key" aria-label="How to read the map"></section>
+  <main id="sheets"></main>
+  <footer class="end">
+    The plan follows the game as built: 1000 points in all, four ways to die, two endings. Compass letters in a room's description are the game's own; the lines on the map are schematic, so rooms that overlap in the game's geography are drawn apart.
+  </footer>
+</div>
+<div id="tip" role="tooltip" hidden></div>
+
+<script>
+/*GAMEDATA*/
+
+const ACTS = {
+  1: { name: "Cairo", color: "#e3a43c" },
+  2: { name: "The desert", color: "#e0735a" },
+  3: { name: "The upper pyramid", color: "#5a98e6" },
+  4: { name: "The inner pyramid", color: "#3fbfa0" },
+  5: { name: "The pillar wing", color: "#ab8be6" },
+  6: { name: "The lift and the ending", color: "#efe3b4" }
+};
+// Blend a colour into the dark ground so each room gets a tint (SVG attributes cannot use var() or color-mix reliably).
+function tint(hex, amount) {
+  const g = [12, 26, 34];
+  const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  return "rgb(" + c.map((v, i) => Math.round(g[i] + (v - g[i]) * amount)).join(",") + ")";
+}
+
+/* route: req = every winning game passes through it; alt = one of several ways on; opt = can be skipped */
+const ROOMS = {
+  hotel: { label: "Hotel Room", sub: "where you start", act: 1, route: "req",
+    lead: "The Ravenwood Hotel, the morning after you arrived from London. The room holds a briefcase on the writing desk and a spotted mirror.",
+    items: ["Briefcase (it cannot be taken): open it for the telegram, the broken penknife, a map of Cairo, a pocket compass, a comb, a toothbrush and the aftershave", "Spotted mirror, with a photograph of Dr. Hart tucked in the frame"],
+    points: ["+5 studied the telegram", "+5 found the photograph"],
+    tip: "Try to leave without opening the case and you are stopped once, and told to look." },
+  tahrir: { label: "Tahrir Square", sub: "the hub of Cairo", act: 1, route: "req",
+    lead: "A busy crossroads and the centre of Cairo: the museum to the north, your hotel to the south, the bazaar to the east and the coffee house to the west. Nothing to solve here. Once you have hired the camel you ride her through it." },
+  museum: { label: "Museum Annex", sub: "Whitfield", act: 1, route: "req",
+    lead: "Whitfield, the Trustees' man in Cairo, is officially cataloguing Ptolemaic pottery and unofficially in trouble with the police. One TALK TO WHITFIELD is all it takes: he briefs you at once. The pyramid (buried to its tip, west of the old caravan road, and uncatalogued) and Kasim, with the magnifying glass; then the supplies, the kit-bag (waterskin, rations, spare lamp, teabags, tarot card, the Indian wallet) and an umbrella. Afterwards you can still ask him about the pyramid, supplies, Voss and the Trustees (at which he steps in front of the crates).",
+    people: ["Whitfield: hearing aid on a wire, whistles when he turns round"],
+    items: ["Crates stencilled DO NOT OPEN, with their nails drawn and replaced many times"],
+    points: ["+10 learned about Kasim", "+10 received supplies"] },
+  teahouse: { label: "Coffee House", sub: "Hassan, and dreadful coffee", act: 1, route: "opt",
+    lead: "Hassan sells rumours. Ask him about the pyramid and he tells you Kasim trusts gifts and not strangers. A boy with a brass tray sells cups of coffee for 2 piastres (1 with the fez): \"marginally more fluid than tar, and somehow tastes worse.\" It scores nothing. Tea is not sold here (that is the stall next door), and the boy says so.",
+    people: ["Hassan: henna-red braided beard, one missing tooth"],
+    points: ["+10 picked up a useful rumour"] },
+  teastall: { label: "Tea Stall", sub: "the teabags hint", act: 1, route: "opt",
+    lead: "Tea is 8 piastres here (5 with the fez). The reason to come is the hint: ask the Tea Seller about the teabags in your kit-bag and he tells you the Bedouin would love English tea, which you will need at the camp.",
+    people: ["The Tea Seller: gleaming two-tone shoes"],
+    points: ["+5 stayed hydrated (the first glass)"] },
+  bazaar: { label: "Curio Bazaar", sub: "the scarab amulet", act: 1, route: "req",
+    lead: "Buy the scarab amulet from the Merchant (20 piastres, 12 with the fez): it is the gift Kasim wants. A bald man on a crate is begging for a comb. A pickpocket in a stained waistcoat stalks you and takes your watch, but only two turns after he has been warned of (the bald man says so, or he closes in himself after a few turns). Show him a repaired knife, or leave the Bazaar, and he gives up.",
+    people: ["The Merchant, small enough to be a glove puppet", "The Bald Man: egg-polished head, ram's-horn moustache"],
+    items: ["Scarab amulet (for sale)"],
+    points: ["+10 bought the amulet", "+5 gave the bald man a comb (he tells you how to stop the thief)", "+5 saw off the thief"] },
+  rugdealer: { label: "Rug Dealer", sub: "pen for a fez", act: 1, route: "opt",
+    lead: "Trades your silver pen for a red felt fez and puts it on your head himself. Wearing the fez gives you local prices in Cairo: the amulet, the camel, tea and the knife repair all cost far less. Examine the rugs for a clue.",
+    people: ["The Rug Dealer: monocle, a ring on every finger"],
+    points: ["+10 traded the pen for a fez", "+10 read the carvings on the rugs"] },
+  blacksmith: { label: "Blacksmith", sub: "mends the knife", act: 1, route: "opt",
+    lead: "Mends your broken penknife for 10 piastres (6 with the fez). A working knife cuts ropes later (the Well Shaft net, the Snake Pit and Echoes sarcophagi, the Scribe's blade) and scares off the Bazaar pickpocket.",
+    people: ["The Blacksmith: burnt-off eyebrows"],
+    points: ["+10 had the knife repaired"] },
+  antiquities: { label: "Antiquities Market", sub: "Kasim and the papyrus", act: 1, route: "req",
+    lead: "Give Kasim the scarab amulet to earn his trust, then ask him about the pyramid. He unlocks his cabinet and lays a papyrus fragment on the counter. Read it with the magnifying glass: a valley, a ridge shaped like a jackal's ear, a distance from the last well on the caravan road, and a tiny drawing of a triangle with a doorway at its base. Kasim warns that the place \"is said to close behind its visitors\".",
+    people: ["Kasim: immaculate white suit, an unblinking gaze, says almost nothing"],
+    points: ["+15 earned Kasim's trust", "+20 deciphered the papyrus"] },
+  camelmarket: { label: "Camel Market", sub: "hire the camel", act: 1, route: "req",
+    lead: "Hire the camel for 25 piastres (15 with the fez). You ride her from then on, through Cairo and the whole desert, and she waits outside anywhere a camel cannot go. The Docks lie to the south and the City Gate to the west.",
+    people: ["The Camel Trader: a giant who ducks under his awning, missing two fingers"],
+    points: ["+15 hired a camel"] },
+  docks: { label: "The Docks", sub: "sunglasses for a jacket", act: 1, route: "opt",
+    lead: "Give the vendor your English jacket in exchange for the sunglasses (GET, BUY, TRADE and SWAP all work). Wear them at any water to see what it hides: the larvae in the oasis pool.",
+    people: ["The Dock Vendor, wearing three hats at once"],
+    items: ["Tray of dark glasses"],
+    points: ["+10 traded the jacket for sunglasses"] },
+  citygate: { label: "City Gate", sub: "the way west", act: 1, route: "req",
+    lead: "The guard checks three things, and tells you which are missing: Whitfield's kit-bag (food and water), a camel, and knowing where you are going (Kasim's papyrus). When all three are in place, go west.",
+    people: ["The Gate Guard: a scar from brow to jaw"],
+    points: ["+15 left Cairo"] },
+
+  desertroad: { label: "Desert Road", sub: "out of Cairo", act: 2, route: "req",
+    lead: "The road runs out of Cairo into the sand. A milestone and a pole, and nothing to solve. The room sets the sense of distance: you have been travelling for an hour (your pocketwatch says so to the minute, or, without one, the sun and the ache in your thighs) and the heat is draining; the oasis is a further two hours' ride west. Your waterskin is full from the start (Whitfield filled it), though the water is warm. Every action in the desert dries you out: after about a dozen the heat makes you dizzy, and the game reminds you to DRINK (the waterskin never runs dry; mint tea works too). Ignore the reminders for about two dozen actions and the camel, with the reins slack, wanders onto loose sand and sinks, and you come to back on this road with nothing lost.",
+    items: ["Milestone", "Pole"] },
+  oasis: { label: "Oasis", sub: "water, dates and mosquitoes", act: 2, route: "req", hazard: true,
+    lead: "Three hours out from the gate (the room says so, by watch or by sun), and by your recollection of the papyrus the dunes are another two hours' ride beyond. The vendor will not name his price: asking to BUY or GET dates only gets \"the finest dates in all of Egypt, and certainly the only dates at this oasis. Ha! Trade me something I might want.\" The clue is to EXAMINE him: he has an elephant tattooed on his chest, matching the silver elephant on the Indian wallet. Offer the wallet (GIVE, SWAP or TRADE) for cold, clean water (he pours out the warm water Whitfield gave you) and a basket of dates; wrong offers get \"Look at me. What does a man like me want?\" (and a demonstration of what the beetles do to a date stone). Eat the dates for stones to throw in the dunes. Water the camel here: she must drink before she can find the stair. The pool is for camels only. Unless you have put on the aftershave, mosquitoes drive you back to the road on your third turn.",
+    people: ["The Oasis Vendor: black hair down his whole back with a sheen that would make an Arabian horse jealous, a cooking spoon behind his ear"],
+    items: ["Pool", "Palm trees", "Stall"],
+    danger: "Drinking from the pool kills you (hard death 1: \"Where the camel drinks, the wise man frowns\"). The sunglasses show the larvae.",
+    points: ["+15 traded the wallet", "+10 ate at the oasis", "+10 watered the camel"] },
+  dunes: { label: "Shifting Dunes", sub: "test the ground, then step", act: 2, route: "req",
+    lead: "Two hours beyond the oasis, five from Cairo (the room says so). The sand has no memory and the way west is hidden. The room itself tells you what to do: with date stones in your pocket, \"the vendor's lesson comes back to you: a thrown stone shows you what the sand will do before your boot has to\"; with none, it points you back to the oasis's dates. EAT DATE leaves you one date stone each time (\"after tasting one of the best dates in Egypt, you have a sticky date stone in your hand\"), and you can also throw a whole date. THROW STONE or THROW DATE (or TOSS) in a direction, and if you leave out the direction it asks \"In what direction?\": beetles pour out of bad ground, and untouched ground is safe. DROP STONE or DROP DATE is not a test: \"The date stone lands at your own feet. Try harder.\" The way is two stages, north and then west, and the right way works even if you never test it (by luck: \"by some small miracle, it holds\"); testing just tells you in advance. A dead thief lies to the south: examine the body to get your watch back.",
+    items: ["Dead thief"],
+    danger: "Step onto a wrong slope (south, or west on the first screen, or north on the second) and it lets go: you sink, black out, and come to on the Desert Road, with nothing lost but the walk. Testing a bad slope costs a date stone, but only the first time you test it.",
+    points: ["+10 found firm ground", "+10 crossed the dunes", "+5 recovered the pocketwatch"] },
+  camp: { label: "Bedouin Camp", sub: "mint tea and a flute", act: 2, route: "req",
+    lead: "Give the host your teabags for mint tea, which protects you from mirages at the ridge. As you take the first sip he warns you: \"Do not go over the Sandstorm Ridge, guest... Even the finest compass lies to its master beyond the ridge\" (a hint that the pyramid interferes with the needle; ask him about the ridge to hear it again). The fortune-teller gives you a flute, which you will need at the Serpent Bridge, and wants the missing card from her tarot deck (the Hanged Man, in your kit-bag). In return she tells you to follow the wind.",
+    people: ["The Bedouin Host: eye patch, a vast copper pot", "The Fortune-teller: sixteen scarves, a gold tooth, a laugh like a hinge"],
+    points: ["+10 swapped the teabags for mint tea", "+5 drank the mint tea", "+5 was given a flute", "+15 returned the Hanged Man"] },
+  ridge: { label: "Sandstorm Ridge", sub: "three ways through", act: 2, route: "req",
+    lead: "A sandstorm hides the way to the valley. Drink the mint tea and the mirages refuse you; open the umbrella (\"atop the camel, the winds pull at your umbrella like a rough sail, and almost instinctively the camel proceeds with an eerie certainty\"); or follow the wind, riding. It blows from the south and then the west, so go north, north, east, east. The umbrella is lost whichever you choose. Either way you cross in near-blindness for over an hour (the watch says an hour and a quarter, or the light does) and glimpse skeletons of people and camels, glints of forgotten metal and whispers in the wind: \"it is no surprise that so few have come this way, and that the pyramid is still a ghostly rumour.\" The compass lies here and turns in circles in the valley. The crossing leaves you with the sense of hours gone and the shadows growing long, and of a route you could never retrace or chart.",
+    points: ["+25 crossed the ridge", "+25 followed the wind"] },
+  valley: { label: "Valley of Stones", sub: "a night in Voss's camp", act: 2, route: "req",
+    lead: "The storm ends at dusk (the compass spun the whole way, the route could never be traced or charted, and the shadows are long). The valley's fallen blocks are not natural: each has one face dressed flat, all tilting at the same steep angle, like a vast sloping wall sunk to its shoulders in the sand (the first sign of the buried pyramid). There is no way back: without the umbrella, returning through the storm would be suicide, and the Exits line says so. Your camel is exhausted. The way on is a night to survive. Examine Voss's sacks (they are not empty: matches, a candle stub, a tin of meat with a German label, German tea), light a fire (matches, or a lit lamp), enter the tent, eat (the rations or a date are safe; the German tin must be opened with the penknife's hooked opener, `OPEN TIN WITH KNIFE`, and then cooked on a flat stone at the fire's edge, `COOK MEAT ON FIRE`: its lid is stamped with German army markings and JULI 1925, \"aged to perfection\", and eaten raw it gives you food poisoning), brew and drink the tea (it needs the fire, the mug and some of your water: \"boiled boot polish\"), share the rest of your water with the camel, and sleep. Wake in the morning with the fire out, and the camel pawing at the top of the stair at the foot of the jackal-ear ridge (dreams of ghosts, Romans, gold, shifting stars and a beam of light). Then go down.",
+    items: ["Collapsed tent", "Cold fire", "Voss's sacks, with the camp kit", "Enamel mug", "Torn page"],
+    danger: "Eat the German meat raw and you are poisoned; sleep without a fire and a meal and you freeze. Either way you come to back in the Shifting Dunes, with everything you carried, ready to cross again (the game warns you once and asks you to confirm). Not a hard death. The thirst clock still runs here: drink.",
+    points: ["+10 reached the valley", "+10 read Voss's torn page", "+10 found the entrance (in the morning)"] },
+  stairway: { label: "Buried Stairway", sub: "the point of no return", act: 3, route: "req",
+    lead: "The way down is a bamboo floor over a gap: the thin canes snap as you run, the thick ones hold. Red sand drains through the hole into a glass vessel that seals itself and vanishes (you meet that sand again at the lift). Then the rest of the floor falls away behind you, leaving a gaping void, and the stair's mouth is lost in the dark. There is no way back out, and the only way on is through the pyramid. The walls are dressed limestone leaning inward at one steady angle: the first proof that you are inside a buried pyramid.",
+    points: ["+5 crossed the bamboo", "+5 was sealed in"],
+    tip: "Trying to go up says there is no sky, no ledge and nothing to climb. The camel is left tethered at the top." },
+  antechamber: { label: "Antechamber", sub: "the Djinn appears", act: 3, route: "req",
+    lead: "The Antechamber of Warnings: carved panels, and the Djinn's first appearance. Empty-handed he says \"Theft never pays.\" If you carry treasure he takes one piece (\"No free lunches\"). If you carry the Stone he translates the panels: \"The house keeps what is the house's.\"",
+    people: ["The Djinn: blue-grey smoke, a gold waistcoat, a pumpkin turban, jade nails"] },
+  threshold: { label: "Collapsed Threshold", sub: "a gap under a lintel", act: 3, route: "req",
+    lead: "A great lintel has fallen across the passage, leaving a gap you can squeeze through sideways. Scratches beside it, many parallel lines, as though someone counted days or steps. You can go back and forth through the gap as often as you like." },
+  hall: { label: "Hall of Offerings", sub: "the first treasure", act: 3, route: "req",
+    lead: "The first treasure: a gold cup and a collar, and a sarcophagus to open for the first orb. Everything stamped with the pyramid is marked treasure. It only scores when you surrender it at the lift, and you cannot ride the lift carrying it. Examine a piece to notice the mark.",
+    items: ["Gold cup (marked)", "Collar (marked)", "Sarcophagus, with the gold orb (marked)"],
+    points: ["+10 opened the sarcophagus", "+5 noticed the pyramid mark"] },
+  statues: { label: "Statue Corridor", sub: "the Rosetta Stone", act: 3, route: "req",
+    lead: "The statues' stone arms point at the safe tile each time: west, east, west. A wrong step slides you back. Climb the last statue to take the Rosetta Stone from its jaws and a voice says \"Welcome, guest.\" Wear it and it murmurs guidance in each new room. Clean it with the toothbrush for its last line.",
+    items: ["Rosetta Stone (marked, worn round the neck)"],
+    points: ["+10 crossed the corridor", "+20 took the Stone", "+10 wore the Stone", "+5 cleaned the Stone"] },
+  wellshaft: { label: "Well Shaft", sub: "two ropes", act: 3, route: "req",
+    lead: "A shaft with two ropes. The thick one is the way down. Cut the thin one with the knife and a net drops, with a bracelet in it.",
+    items: ["Bracelet (marked)"],
+    points: ["+10 went down the shaft", "+5 cut the net loose"] },
+
+  flooded: { label: "Flooded Passage", sub: "the hub, and the key", act: 4, route: "req",
+    lead: "The hub of the inner pyramid: black water, and a hole that is thirsty. Fill the waterskin with the black water and pour it into the hole three times, and a wooden key floats up. West is the Whispering Sand, east the Snake Pit.",
+    items: ["Black water", "Hole", "Wooden key"],
+    points: ["+5 started to fill the hole", "+15 floated the key"] },
+  whispering: { label: "Whispering Sand", sub: "a sentence in the sand", act: 4, route: "opt",
+    lead: "Four alcoves whisper fragments. Listen at each, then SAY or WRITE the sentence they make together in the sand: what the pyramid marks, the pyramid keeps. A niche opens with a lapis scarab.",
+    items: ["Lapis scarab (marked)"],
+    points: ["+5 heard a whisper", "+15 answered the whispers"] },
+  snakepit: { label: "Snake Pit", sub: "a riddle and the crimson orb", act: 4, route: "alt",
+    lead: "The Snake asks what you owe to those you take from. Answer \"a debt\" (or something close) for a hint. Cut the ropes on the sarcophagus with your knife and open it for the crimson orb. South is the Serpent Bridge.",
+    people: ["The Snake: thick as a thigh, wire spectacles, a voice like a cello"],
+    items: ["Roped sarcophagus, with the crimson orb (marked)"],
+    points: ["+15 answered the riddle", "+5 cut the ropes", "+10 opened the roped sarcophagus"] },
+  scribe: { label: "Scribe's Alcove", sub: "pickaxe, skull, blade", act: 4, route: "alt", hazard: true,
+    lead: "A headless skeleton, a sprung floor and a blade hanging on a rope. Read the notebook, take the pickaxe (you need it to dig the Collapsed Tunnel), cut the blade's rope, then jump for the crystal skull.",
+    people: ["McDaniels: a Victorian, headless, with his satchel beside him"],
+    items: ["Notebook", "Pickaxe", "Crystal skull (marked)"],
+    danger: "Jump before cutting the rope and you die (hard death 2: \"Protect ya neck\"). The game asks you to confirm the jump first.",
+    points: ["+10 read McDaniels's notebook", "+5 took the pickaxe", "+10 disarmed the blade"] },
+  mirrors: { label: "Hall of Mirrors", sub: "turn the mirrors", act: 4, route: "alt",
+    lead: "Turn the mirrors east, south, east to send a sunbeam round the hall. Put the magnifying glass in the stand to focus it, and the beam cuts a block out of the wall. The wooden key opens the east door to the Burial Chamber. South is the Mummy's Chamber.",
+    points: ["+10 aligned the mirrors", "+5 set the lens", "+5 made a line", "+10 cut through the stone", "+10 unlocked the burial chamber"] },
+  burial: { label: "Burial Chamber", sub: "the mask", act: 4, route: "req",
+    lead: "A minor noble's tomb. Take the golden mask: you must wear it to pass the portal at the end. Open the sarcophagus for the green orb, and take the lapis falcon. South is the Hall of Reigns, east the Serpent Bridge.",
+    items: ["Funerary mask (marked, needed)", "Sarcophagus, with the green orb (marked)", "Lapis falcon (marked)"],
+    points: ["+5 opened the noble's sarcophagus"] },
+  serpent: { label: "Serpent Bridge", sub: "play the flute", act: 4, route: "alt",
+    lead: "Three doors made of sound: low, middle and high. Play the flute at the middle one to charm the cobra and open the west door to the Burial Chamber. The low and the high doors open on nothing, the mosaic floor tips, and you fall all the way back to the Antechamber of Warnings with the Djinn's laughter ringing in your ears, thinning into a mocking hiss. It costs the long walk back (Threshold, Hall, the statue corridor again, the Well Shaft, then down and across) and nothing else.",
+    items: ["Doors", "Lintels"],
+    points: ["+20 charmed the cobra"] },
+  mummy: { label: "Mummy's Chamber", sub: "the swing across the chasm", act: 4, route: "alt",
+    lead: "The mummy has had no news in an age: tell him about Egypt, and ask him about the crossing. Unwrap him for bandages. Examine the beam to find a hook, tie the bandages to it, and SWING across the chasm. It is a one-way trip to the Ghost's Garden, and the game asks you to confirm.",
+    people: ["The Mummy: a lapis eye, a reed pen behind the ear, a voice like paper"],
+    items: ["Beam, with a hook", "Chasm"],
+    points: ["+10 told the mummy the news", "+10 unwrapped the mummy", "+5 worked the hook free", "+10 swung across the chasm"] },
+  reigns: { label: "Hall of Reigns", sub: "the answer for the star chart", act: 4, route: "alt",
+    lead: "A carved frieze of the pharaohs in order. With the Stone (or with the Djinn's help, at a cost) it reads \"the jackal star over the river\": the answer to the two rings in the Star Chart Chamber.",
+    items: ["Frieze"] },
+  treasury: { label: "Treasury Vault", sub: "choose the smallest pearl", act: 4, route: "alt", hazard: true,
+    lead: "The Djinn sits on the heap and says only that you may take one pearl and only one. Taking one is not the end of it: once you hold a pearl, the Djinn tells you to swallow your choice, and the way south is blocked (and the way north, if you are holding a pearl) until you do. The clue is Voss: examine him and you find a mostly-skeleton with a cue-ball pearl wedged in his skull. Swallow the seed pearl and you are fine; swallow the marble or the cue-ball and you choke.",
+    people: ["The Djinn: blue-grey smoke, a gold waistcoat, a pumpkin turban, a jade nail", "Dr. Voss, mostly bone with strips of flesh still clinging"],
+    items: ["Seed pearl, marble pearl, cue-ball pearl", "Ingot (marked)", "Ring (marked)", "Voss's notebook (a last page of triumph addressed to Howard Whitfield, then sketches of star patterns, centurions and German text about arks: no answer to the pearls)"],
+    danger: "Hard death 3: \"Big pearl, small throat.\" GET ALL skips the pearls, and you cannot put a chosen pearl back or take a second one.",
+    points: ["+10 found Dr. Voss", "+10 read Voss's notebook", "+20 chose the smallest pearl"] },
+  tunnel: { label: "Collapsed Tunnel", sub: "dig with the pickaxe", act: 4, route: "alt",
+    lead: "Dig through the rubble with the pickaxe to open the way south to the Chamber of Echoes. The dig also uncovers a crack in the floor that leads down to the pillar wing.",
+    items: ["Rubble"],
+    points: ["+10 dug through the rubble"] },
+  garden: { label: "Ghost's Garden", sub: "the Roman's name", act: 4, route: "opt",
+    lead: "The ghost only appears if you carry nothing marked, including the Stone and the mask (REMOVE them, then DROP). Examine the blade, the tablet and the votive and ask him about each. He remembers his name and warns you that the pyramid's stamp is a receipt and the lift weighs what you carry. Pick everything up again before leaving.",
+    people: ["The Roman ghost: a dented cuirass, one sandal, a crooked wreath, polishing his helmet"],
+    items: ["Rusted blade", "Wax tablet", "Clay votive"],
+    points: ["+5 helped the ghost remember (three times)", "+15 gave the Roman back his name", "+10 heard the Roman's warning"] },
+  starchart: { label: "Star Chart Chamber", sub: "two rings, one door", act: 4, route: "alt",
+    lead: "Two rings: turn the star ring to the jackal and the land ring to the river, and the north door opens onto the Sarcophagus Hall.",
+    items: ["Star ring", "Land ring"],
+    points: ["+10 found the jackal star", "+10 found the river", "+10 opened the star door"] },
+  echoes: { label: "Chamber of Echoes", sub: "clap, then push the wall", act: 4, route: "alt",
+    lead: "Walk to the walls and clap: the east wall answers hollow. Push it to open a passage to a hidden sarcophagus. Cut its black ropes with the knife and open it for the blue orb. North is the tunnel, west the star chart.",
+    items: ["Hidden sarcophagus, with the blue orb (marked)"],
+    points: ["+10 found the hollow wall", "+10 opened the hidden passage", "+5 cut the black ropes", "+10 opened the hidden sarcophagus"] },
+  sarchall: { label: "Sarcophagus Hall", sub: "the portal", act: 4, route: "req",
+    lead: "The last treasure room, and a black doorway under a carved eye. Wear the funerary mask and go down: the eye lowers its hood and the portal becomes a stair.",
+    items: ["Golden crook (marked)", "Flail (marked)", "Pectoral (marked)", "The portal"],
+    points: ["+10 passed the portal"] },
+
+  longdescent: { label: "Long Descent", sub: "press down four times", act: 5, route: "opt",
+    lead: "A steep four-stage stair cut in black stone. Each DOWN goes a stage deeper, and the hum grows from your boots to your breastbone. The wing is lit, so no lamp is needed. The compass needle begins to turn.",
+    tip: "Reached from the crack in the Collapsed Tunnel." },
+  stair2: { label: "Lower Stair", sub: "warm, glassy, humming", act: 5, route: "opt",
+    lead: "A broad ramp of glassy black stone, warm to the touch. The light below is bright enough to read by." },
+  landing: { label: "Last Landing", sub: "the four pillars", act: 5, route: "opt",
+    lead: "The lip of the great space: four obsidian pillars rise out of sight from a ring of black glass. They are dormant, not dead.",
+    points: ["+10 found the pillars"] },
+  pgold: { label: "Gold Pillar", sub: "the gold orb", act: 5, route: "opt",
+    lead: "Place the gold orb (from the Hall of Offerings) in the socket at its foot: PUT ORB ON PILLAR. A wrong orb will not seat.",
+    points: ["+12 woke a pillar"] },
+  pcrimson: { label: "Crimson Pillar", sub: "the crimson orb", act: 5, route: "opt",
+    lead: "Place the crimson orb (from the Snake Pit) in the socket.",
+    points: ["+12 woke a pillar"] },
+  pgreen: { label: "Green Pillar", sub: "the green orb", act: 5, route: "opt",
+    lead: "Place the green orb (from the Burial Chamber) in the socket.",
+    points: ["+12 woke a pillar"] },
+  pblue: { label: "Blue Pillar", sub: "the blue orb", act: 5, route: "opt",
+    lead: "Place the blue orb (from the Chamber of Echoes) in the socket.",
+    points: ["+12 woke a pillar"] },
+  heart: { label: "Heart of the Ring", sub: "\"I will see you soon\"", act: 5, route: "opt",
+    lead: "With all four pillars lit, a figure of soft gold light forms above the glass and says, inside your head, \"I will see you soon.\" The compass needle spins fast here.",
+    points: ["+16 woke the pillars"] },
+
+  liftante: { label: "Lift Antechamber", sub: "surrender your treasure", act: 6, route: "req",
+    lead: "The Djinn's last line: \"Ask yourself what you carry that is not yours.\" A heap of old gold lies against the wall, left by people who understood. Treasure scores only when you drop it here or at the lift, and only once per piece. DROP ALL here (or at the lift) also takes off and drops the worn mask and Stone; DROP TREASURE, DROP ALL TREASURE and SURRENDER drop just the marked things, anywhere (you are asked to confirm before giving up the Stone or mask away from here).",
+    items: ["Heap of old gold", "Carved panel"],
+    points: ["Surrender values: gold cup 3, collar 3, bracelet 3, scarab 4, skull 5, mask 5, falcon 3, ingot 4, ring 4, crook 5, flail 5, pectoral 6, Rosetta Stone 5 (55 in all)"] },
+  lift: { label: "Threshold of Judgment", sub: "the lift", act: 6, route: "req", hazard: true,
+    lead: "A platform in a shaft, and a balance with a jar of the red sand from the stairway mat. GET ON LIFT and you have two turns before it rises. Dropping marked treasure from the platform resets the clock. Riding empty-handed carries you up.",
+    people: ["The Djinn's voice, once"],
+    items: ["Jar of red sand", "Balance and pointer", "Platform"],
+    danger: "Ride while carrying anything marked and the rope runs out (hard death 4: \"Load the rope, and the rope will answer\"). The swallowed pearl is exempt.",
+    points: ["+30 rode the lift"] },
+  ledge: { label: "The Ledge", sub: "the watchers", act: 6, route: "req",
+    lead: "A round, silent chamber with a black sarcophagus in the centre and the dead gathered round it: Voss, McDaniels, the Roman, the mummy, the cobra and a crowd. The game accepts only ENTER SARCOPHAGUS here.",
+    points: ["+5 entered the sarcophagus"] },
+  platform: { label: "The Platform", sub: "the Pharaoh", act: 6, route: "req",
+    lead: "A pale platform in a sea of stars, and the Pharaoh in plain linen, patient and dry. Ask him about himself, the pyramid, the treasure, the others, Voss, McDaniels, the Roman, the Djinn, the pillars, the pearl, the lift, Hart, how long he waited, and more: sixteen topics at +1 each. After three topics, or if you ask about going home, he asks \"Will you return?\"",
+    people: ["The Pharaoh: bare feet, a plain bronze ring, eyes that have read many books twice"],
+    points: ["+1 for each of 16 topics", "+10 went home, or +10 stayed"] }
+};
+
+const ENDS = {
+  yes: { label: "Return (YES)", sub: "home, and a book", act: 6, route: "req",
+    lead: "Cold sand, the smell of camel, the valley at first light, the umbrella at your boot. Pembroke writes the book and dedicates it to Adeline Hart. Whitfield is released, and things keep going missing from Cairo. If you swallowed the pearl: \"Pharaohs don't do poo.\"",
+    points: ["+10 went home"] },
+  no: { label: "Stay (NO)", sub: "the best ending", act: 6, route: "alt",
+    lead: "You walk off the platform with the Pharaoh, and the stars make way. \"Dr. Pembroke was never seen again.\" His camel is found grazing in the valley, in perfect health.",
+    points: ["+10 stayed"] }
+};
+
+/* kind: open, cond (needs something), one (one way), deadly (kills you if you are carrying marked treasure) */
+const PANELS = [
+  { id: "s1", act: 1, title: "Cairo", blurb: "Gather what you need to leave: Whitfield's supplies, the amulet for Kasim, the papyrus, a camel. The coffee house, tea stall, rug dealer, blacksmith and docks are optional, but they make the rest cheaper and safer.",
+    nodes: [["museum",2,0],["rugdealer",3,0],["teastall",0,1],["teahouse",1,1],["tahrir",2,1],["bazaar",3,1],["antiquities",4,1],["hotel",2,2],["blacksmith",3,2],["camelmarket",4,2],["citygate",3,3],["docks",4,3]],
+    pills: [{ id: "p1out", text: "On to sheet 2: the desert", target: "s2", x: 2, y: 3 }],
+    edges: [["tahrir","museum"],["tahrir","hotel"],["tahrir","teahouse"],["teahouse","teastall"],["tahrir","bazaar"],["bazaar","rugdealer"],["bazaar","blacksmith"],["bazaar","antiquities"],["antiquities","camelmarket"],["camelmarket","docks"],["camelmarket","citygate"],
+      ["citygate","p1out","cond","West: the guard lets you through only with the kit-bag, a camel and the papyrus lead."]] },
+  { id: "s2", act: 2, title: "The desert", blurb: "A chain of five hazards west of the gate. The camel has to drink at the oasis, the dunes need date stones, the camp supplies the flute and the mint tea, and the ridge can be crossed three ways.",
+    nodes: [["desertroad",0,1],["oasis",1,1],["dunes",2,1],["camp",2,2],["ridge",1,2],["valley",0,2]],
+    pills: [{ id: "p2in", text: "From sheet 1: the gate", target: "s1", x: 0, y: 0 }, { id: "p2out", text: "On to sheet 3: the stair", target: "s3", x: 0, y: 3 }],
+    edges: [["p2in","desertroad","cond","The gate opens only with the kit-bag, a camel and the papyrus lead."],["desertroad","oasis"],["oasis","dunes"],["dunes","camp","cond","Throw date stones to test the ground: north, then west."],["camp","ridge"],["ridge","valley","cond","Three ways: the mint tea, the umbrella, or follow the wind (north, north, east, east)."],["valley","p2out","cond","Only after surviving the night: make a fire, eat, shelter in the tent and sleep, and in the morning the camel paws at the top of the stair."],["dunes","desertroad","one","Step onto untested ground and you sink, black out, and come to on the Desert Road. Throw a stone first.",100]] },
+  { id: "s3", act: 3, title: "The upper pyramid", blurb: "Everything is dark, and the lamp lights itself. The bamboo floor falls away behind you on the first stair, so from here the only way out is through the pyramid. The Rosetta Stone, worn round your neck, starts talking to you from the statue corridor on.",
+    nodes: [["stairway",0,1],["antechamber",1,1],["threshold",2,1],["hall",3,1],["statues",3,2],["wellshaft",2,2]],
+    pills: [{ id: "p3in", text: "From sheet 2: the valley", target: "s2", x: 0, y: 0 }, { id: "p3out", text: "On to sheet 4: the depths", target: "s4", x: 2, y: 3 }],
+    edges: [["p3in","stairway","one","The bamboo floor falls away behind you, and the stair's mouth is lost in the dark: there is no way back out."],["stairway","antechamber"],["antechamber","threshold"],["threshold","hall"],["hall","statues"],["statues","wellshaft","cond","The statues' arms point out the safe tiles: west, east, west."],["wellshaft","p3out","cond","Down the thick rope."]] },
+  { id: "s4", act: 4, title: "The inner pyramid", blurb: "A web of optional and alternative routes. The only rooms every game must pass through are the Flooded Passage, the Burial Chamber (for the mask) and the Sarcophagus Hall. There are two ways beyond the Burial Chamber: through the Mirrors and the Scribe's pickaxe, or across the Mummy's chasm.",
+    nodes: [["flooded",2,1],["whispering",1,1],["snakepit",3,1],["scribe",1,2],["mirrors",1,3],["burial",2,3],["serpent",3,3],["mummy",1,4],["reigns",2,4],["treasury",2,5],["tunnel",2,6],["garden",0,7],["starchart",1,7],["echoes",2,7],["sarchall",3,7]],
+    pills: [{ id: "p4in", text: "From sheet 3: the shaft", target: "s3", x: 2, y: 0 }, { id: "p4wing", text: "Sheet 5: the pillar wing", target: "s5", x: 3, y: 6 }, { id: "p4out", text: "On to sheet 6: the lift", target: "s6", x: 3, y: 8 }, { id: "p4fall", text: "Wrong door: back to sheet 3", target: "s3", x: 3, y: 4 }],
+    edges: [["p4in","flooded"],["flooded","whispering"],["flooded","snakepit"],["whispering","scribe"],["scribe","mirrors"],["mirrors","burial","cond","Align the mirrors, set the lens so the beam cuts the block, then unlock the door with the wooden key."],["mirrors","mummy"],["snakepit","serpent"],["serpent","burial","cond","Play the flute at the middle door to charm the cobra."],["serpent","p4fall","one","A wrong door drops you to the Antechamber of Warnings, with the Djinn laughing and the laughter turning into a hiss. You walk back to the bridge through the Threshold, the Hall, the statue corridor and the Well Shaft."],["burial","reigns"],["reigns","treasury"],["treasury","tunnel"],
+      ["tunnel","echoes","cond","Dig through the rubble with the pickaxe."],["tunnel","p4wing","cond","A crack in the floor, uncovered by the dig, leads down to the pillar wing."],
+      ["mummy","garden","one","Tie the bandages to the hook and swing: one way, and the game asks you to confirm.",-1],["garden","starchart"],["starchart","echoes"],["echoes","sarchall","cond","Clap, walk to the east wall, clap again, then push: a hollow wall opens."],
+      ["starchart","sarchall","cond","Turn the star ring to the jackal and the land ring to the river: the north door opens.",95],["sarchall","p4out","cond","Wear the funerary mask and go down through the portal."]] },
+  { id: "s5", act: 5, title: "The pillar wing", blurb: "Entirely optional, and lit, so the lamp is not needed. Put each orb in the pillar of its own colour. The compass needle turns the whole way down.",
+    nodes: [["longdescent",0,1],["stair2",1,1],["landing",2,1],["pgold",3,2],["pcrimson",4,3],["pgreen",3,4],["pblue",2,3],["heart",3,3]],
+    pills: [{ id: "p5in", text: "From sheet 4: the tunnel", target: "s4", x: 0, y: 0 }],
+    edges: [["p5in","longdescent","cond","The crack uncovered by digging the rubble."],["longdescent","stair2","open","Press DOWN four times in the first room to reach the stair."],["stair2","landing"],["landing","pgold"],["pgold","pcrimson"],["pcrimson","pgreen"],["pgreen","pblue"],["pblue","pgold"],["heart","pgold"],["heart","pcrimson"],["heart","pgreen"],["heart","pblue"]] },
+  { id: "s6", act: 6, title: "The lift and the ending", blurb: "Surrender every piece of marked treasure, ride the lift empty-handed, enter the sarcophagus, and talk to the Pharaoh. Then choose.",
+    nodes: [["liftante",1,1],["lift",2,1],["ledge",3,1],["platform",3,2]],
+    ends: [["yes",2,3],["no",4,3]],
+    pills: [{ id: "p6in", text: "From sheet 4: the portal", target: "s4", x: 0, y: 1 }],
+    edges: [["p6in","liftante","cond","Through the portal, wearing the funerary mask."],["liftante","lift"],["lift","ledge","deadly","The ride. If you are carrying anything marked, the rope runs out and you die."],["ledge","platform","one","ENTER SARCOPHAGUS: one way."],["platform","yes","one","Answer YES to \"Will you return?\""],["platform","no","one","Answer NO."]] }
+];
+
+/* ---------- drawing ---------- */
+const NS = "http://www.w3.org/2000/svg";
+const W = 176, H = 62, PILL_H = 36, GX = 226, GY = 106, PAD = 40;
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in (attrs || {})) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function html(tag, attrs, parent, text) {
+  const e = document.createElement(tag);
+  for (const k in (attrs || {})) e.setAttribute(k, attrs[k]);
+  if (text) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const routeText = { req: "On the way: every game passes through it", alt: "One of several ways on", opt: "Optional: you can skip it" };
+function actColor(n) { return ACTS[n].color; }
+
+// Squeeze a label to fit its box if the font on this machine is wider than expected.
+function fit(t, maxWidth) {
+  try {
+    const len = t.getComputedTextLength();
+    if (len > maxWidth) { t.setAttribute("textLength", maxWidth); t.setAttribute("lengthAdjust", "spacingAndGlyphs"); }
+  } catch (err) { /* no layout available */ }
+}
+
+function borderPoint(n, target) {
+  const cx = n.x + n.w / 2, cy = n.y + n.h / 2;
+  const dx = target.x - cx, dy = target.y - cy;
+  const s = 1 / Math.max(Math.abs(dx) / (n.w / 2), Math.abs(dy) / (n.h / 2), 0.0001);
+  return { x: cx + dx * s, y: cy + dy * s };
+}
+
+const tip = document.getElementById("tip");
+let tipOwner = null;
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+function dirName(d) { return { N: "north", S: "south", E: "east", W: "west", U: "up", D: "down" }[d] || d; }
+
+function roomTip(id, info) {
+  const exits = (GAME.exits[id] || []).filter(x => x.to !== id).map(x => esc(dirName(x.dir)) + ": " + esc(GAME.names[x.to] || x.to));
+  let h = '<h3>' + esc(GAME.names[id] || info.label) + '</h3>';
+  h += '<div class="route">' + esc(ACTS[info.act].name) + ", " + esc(routeText[info.route]) + '</div>';
+  h += '<p class="lead">' + esc(info.lead) + '</p><dl>';
+  if (info.people && info.people.length) h += '<dt>People</dt><dd><ul>' + info.people.map(x => '<li>' + esc(x) + '</li>').join("") + '</ul></dd>';
+  if (info.items && info.items.length) h += '<dt>Things here</dt><dd><ul>' + info.items.map(x => '<li>' + esc(x) + '</li>').join("") + '</ul></dd>';
+  if (info.points && info.points.length) h += '<dt>Points</dt><dd class="pts"><ul>' + info.points.map(x => '<li>' + esc(x) + '</li>').join("") + '</ul></dd>';
+  if (info.danger) h += '<div class="danger"><dt>Danger</dt><dd>' + esc(info.danger) + '</dd></div>';
+  if (info.tip) h += '<dt>Note</dt><dd>' + esc(info.tip) + '</dd>';
+  if (exits.length) h += '<dt>Exits</dt><dd>' + exits.join("; ") + '</dd>';
+  return h + '</dl>';
+}
+function showTip(innerHtml, color, x, y, anchorRect) {
+  tip.innerHTML = innerHtml;
+  tip.style.borderTopColor = color || "var(--a1)";
+  tip.hidden = false;
+  placeTip(x, y, anchorRect);
+}
+function placeTip(x, y, anchorRect) {
+  const r = tip.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let left, top;
+  if (anchorRect) {
+    left = anchorRect.right + 14; top = anchorRect.top;
+    if (left + r.width > vw - 10) left = anchorRect.left - r.width - 14;
+    if (left < 10) left = Math.max(10, Math.min(vw - r.width - 10, anchorRect.left));
+  } else {
+    left = x + 18; top = y + 18;
+    if (left + r.width > vw - 10) left = x - r.width - 18;
+  }
+  if (left < 10) left = 10;
+  if (top + r.height > vh - 10) top = vh - r.height - 10;
+  if (top < 10) top = 10;
+  tip.style.left = left + "px";
+  tip.style.top = top + "px";
+}
+function hideTip() { tip.hidden = true; tipOwner = null; }
+
+function build() {
+  const nav = document.getElementById("nav");
+  const sheets = document.getElementById("sheets");
+  PANELS.forEach((P, i) => {
+    const a = html("a", { href: "#" + P.id }, nav);
+    const dot = html("span", {}, a); dot.style.background = actColor(P.act);
+    a.appendChild(document.createTextNode("Sheet " + (i + 1) + ": " + P.title));
+
+    const sec = html("section", { class: "sheet", id: P.id }, sheets);
+    const hd = html("header", {}, sec);
+    const h2 = html("h2", {}, hd, "Sheet " + (i + 1) + " of " + PANELS.length + ", " + P.title);
+    html("p", { class: "blurb" }, sec, P.blurb);
+    const wrap = html("div", { class: "plan" }, sec);
+
+    // geometry
+    const nodes = {};
+    const place = (id, col, row, kind, w, h) => { nodes[id] = { id, kind, x: PAD + col * GX, y: PAD + row * GY, w, h }; };
+    P.nodes.forEach(n => place(n[0], n[1], n[2], "room", W, H));
+    (P.ends || []).forEach(n => place(n[0], n[1], n[2], "end", W, H));
+    (P.pills || []).forEach(p => { place(p.id, p.x, p.y, "pill", W, PILL_H); nodes[p.id].pill = p; });
+    let maxX = 0, maxY = 0;
+    for (const k in nodes) { maxX = Math.max(maxX, nodes[k].x + nodes[k].w); maxY = Math.max(maxY, nodes[k].y + nodes[k].h); }
+    const vw = maxX + PAD, vh = maxY + PAD;
+    const svg = el("svg", { viewBox: "0 0 " + vw + " " + vh, role: "group", "aria-label": "Map: " + P.title });
+    wrap.appendChild(svg);
+    const defs = el("defs", {}, svg);
+    const pat = el("pattern", { id: "g" + P.id, width: 32, height: 32, patternUnits: "userSpaceOnUse" }, defs);
+    el("path", { d: "M32 0H0V32", fill: "none", stroke: "#183341", "stroke-width": 1 }, pat);
+    ["neutral:#7b97a3", "cond:#e3a43c", "deadly:#ff6b61"].forEach(s => {
+      const [nm, col] = s.split(":");
+      const m = el("marker", { id: "ar-" + P.id + "-" + nm, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 9, markerHeight: 9, orient: "auto-start-reverse" }, defs);
+      el("path", { d: "M0 1L10 5L0 9z", fill: col }, m);
+    });
+    el("rect", { width: vw, height: vh, fill: "url(#g" + P.id + ")" }, svg);
+
+    const gEdges = el("g", {}, svg);
+    const gNodes = el("g", {}, svg);
+    const edgeEls = [];
+
+    // edges
+    P.edges.forEach(e => {
+      const [a, b, kind = "open", note = "", curve = 0] = e;
+      const na = nodes[a], nb = nodes[b];
+      const ca = { x: na.x + na.w / 2, y: na.y + na.h / 2 }, cb = { x: nb.x + nb.w / 2, y: nb.y + nb.h / 2 };
+      const mid = { x: (ca.x + cb.x) / 2, y: (ca.y + cb.y) / 2 };
+      let ctrl = null;
+      if (curve) {
+        const dx = cb.x - ca.x, dy = cb.y - ca.y, len = Math.hypot(dx, dy) || 1;
+        const off = curve === -1 ? -90 : curve;
+        ctrl = { x: mid.x + (-dy / len) * off, y: mid.y + (dx / len) * off };
+      }
+      const s = borderPoint(na, ctrl || cb), t = borderPoint(nb, ctrl || ca);
+      const d = ctrl ? "M" + s.x + " " + s.y + " Q" + ctrl.x + " " + ctrl.y + " " + t.x + " " + t.y : "M" + s.x + " " + s.y + " L" + t.x + " " + t.y;
+      const color = kind === "deadly" ? "#ff6b61" : (kind === "cond" ? "#e3a43c" : "#7b97a3");
+      const g = el("g", { class: "edge" }, gEdges);
+      const line = el("path", { d, fill: "none", stroke: color, "stroke-width": kind === "open" ? 2 : 2.4 }, g);
+      if (kind === "cond" || kind === "deadly") line.setAttribute("stroke-dasharray", "7 5");
+      if (kind === "one" || kind === "deadly") line.setAttribute("marker-end", "url(#ar-" + P.id + "-" + (kind === "deadly" ? "deadly" : "neutral") + ")");
+      if (kind === "one") line.setAttribute("stroke-width", 2.4);
+      if (kind === "cond" && nb.kind === "pill") line.setAttribute("marker-end", "url(#ar-" + P.id + "-cond)");
+      if (kind === "cond" && na.kind === "pill") line.setAttribute("marker-end", "url(#ar-" + P.id + "-cond)");
+      // midpoint marker for a condition
+      let mp = ctrl ? { x: 0.25 * s.x + 0.5 * ctrl.x + 0.25 * t.x, y: 0.25 * s.y + 0.5 * ctrl.y + 0.25 * t.y } : { x: (s.x + t.x) / 2, y: (s.y + t.y) / 2 };
+      if (kind === "cond" || kind === "deadly" || kind === "one") {
+        const dm = el("rect", { x: mp.x - 5, y: mp.y - 5, width: 10, height: 10, transform: "rotate(45 " + mp.x + " " + mp.y + ")", fill: color, stroke: "#112430", "stroke-width": 2 }, g);
+      }
+      const hit = el("path", { d, fill: "none", stroke: "transparent", "stroke-width": 18, style: "cursor:help" }, g);
+      const label = (GAME.names[a] || (nodes[a].pill ? nodes[a].pill.text : a)) + " to " + (GAME.names[b] || (nodes[b].pill ? nodes[b].pill.text : b));
+      const kindText = { open: "An open way", cond: "Needs something first", one: "One way only", deadly: "Deadly if you are carrying marked treasure" }[kind];
+      const body = '<h3>' + esc(label) + '</h3><div class="route">' + esc(kindText) + '</div>' + (note ? '<p class="lead">' + esc(note) + '</p>' : "");
+      if (kind !== "open" || note) {
+        hit.addEventListener("pointermove", ev => { showTip(body, color, ev.clientX, ev.clientY); });
+        hit.addEventListener("pointerleave", hideTip);
+      }
+      edgeEls.push({ g, a, b });
+    });
+
+    // nodes
+    const draw = (id, info, color, kind) => {
+      const n = nodes[id];
+      const cls = "node " + (info.route || "req") + (info.route === "opt" ? " opt" : "");
+      const g = el("g", { class: cls, tabindex: 0, role: "button", "data-id": id, "aria-label": (GAME.names[id] || info.label) + ". " + info.lead }, gNodes);
+      const rect = el("rect", { class: "box", x: n.x, y: n.y, width: n.w, height: n.h, rx: 7, fill: tint(color, 0.16), stroke: color, "stroke-width": info.route === "req" ? 2.6 : 1.6 }, g);
+      if (info.route === "opt") rect.setAttribute("stroke-dasharray", "6 4");
+      const lt = el("text", { x: n.x + n.w / 2, y: n.y + 27, "text-anchor": "middle", fill: "#eef5f7", "font-family": "Barlow Condensed, Arial Narrow, sans-serif", "font-size": 18, "font-weight": 600 }, g);
+      lt.textContent = info.label; fit(lt, n.w - 24);
+      const st = el("text", { x: n.x + n.w / 2, y: n.y + 46, "text-anchor": "middle", fill: "#9fb6bf", "font-family": "Source Serif 4, Georgia, serif", "font-size": 12 }, g);
+      st.textContent = info.sub; fit(st, n.w - 20);
+      if (info.hazard) {
+        const bx = n.x + n.w - 6, by = n.y + 6;
+        el("circle", { cx: bx, cy: by, r: 10, fill: "#ff6b61", stroke: "#0c1a22", "stroke-width": 2 }, g);
+        const t = el("text", { x: bx, y: by + 4.5, "text-anchor": "middle", fill: "#1a0907", "font-family": "Barlow Condensed, sans-serif", "font-size": 14, "font-weight": 600 }, g);
+        t.textContent = "x";
+      }
+      const show = (ev) => {
+        tipOwner = id;
+        const r = g.getBoundingClientRect();
+        showTip(roomTip(id, info), color, ev && ev.clientX, ev && ev.clientY, ev && ev.type === "focus" ? r : null);
+        svg.classList.add("dimming");
+        const hot = new Set([id]);
+        edgeEls.forEach(e => { const on = e.a === id || e.b === id; e.g.classList.toggle("hot", on); if (on) { hot.add(e.a); hot.add(e.b); } });
+        gNodes.querySelectorAll(".node").forEach(x => x.classList.toggle("hot", hot.has(x.getAttribute("data-id"))));
+      };
+      const hide = () => {
+        hideTip(); svg.classList.remove("dimming");
+        edgeEls.forEach(e => e.g.classList.remove("hot"));
+        gNodes.querySelectorAll(".node").forEach(x => x.classList.remove("hot"));
+      };
+      g.addEventListener("pointerenter", show);
+      g.addEventListener("pointermove", ev => { if (!tip.hidden) placeTip(ev.clientX, ev.clientY); });
+      g.addEventListener("pointerleave", hide);
+      g.addEventListener("focus", show);
+      g.addEventListener("blur", hide);
+      g.addEventListener("click", ev => { if (ev.pointerType === "touch") show(ev); });
+    };
+    P.nodes.forEach(n => draw(n[0], ROOMS[n[0]], actColor(ROOMS[n[0]].act)));
+    (P.ends || []).forEach(n => draw(n[0], ENDS[n[0]], actColor(ENDS[n[0]].act)));
+
+    // pills: jump links to other sheets
+    (P.pills || []).forEach(p => {
+      const n = nodes[p.id];
+      const g = el("g", { class: "node pill", tabindex: 0, role: "link", "aria-label": p.text }, gNodes);
+      g.setAttribute("data-id", p.id);
+      el("rect", { class: "box", x: n.x, y: n.y, width: n.w, height: n.h, rx: n.h / 2, fill: "#112430", stroke: "#53707c", "stroke-width": 1.6, "stroke-dasharray": "2 4" }, g);
+      const pt = el("text", { x: n.x + n.w / 2, y: n.y + n.h / 2 + 4.5, "text-anchor": "middle", fill: "#b6cad1", "font-family": "Barlow Condensed, Arial Narrow, sans-serif", "font-size": 15, "font-weight": 500 }, g);
+      pt.textContent = p.text; fit(pt, n.w - 26);
+      const go = () => { const t = document.getElementById(p.target); if (t) { t.scrollIntoView({ behavior: "smooth" }); } };
+      g.addEventListener("click", go);
+      g.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(); } });
+    });
+  });
+
+  // key
+  const key = document.getElementById("key");
+  const item = (svgInner, text) => { const d = html("div", {}, key); const s = document.createElementNS(NS, "svg"); s.setAttribute("width", 52); s.setAttribute("height", 28); s.setAttribute("viewBox", "0 0 52 28"); s.innerHTML = svgInner; d.appendChild(s); d.appendChild(document.createTextNode(text)); };
+  item('<rect x="2" y="3" width="48" height="22" rx="5" fill="none" stroke="#e3a43c" stroke-width="3"/>', "A thick line: every game passes through this room");
+  item('<rect x="2" y="3" width="48" height="22" rx="5" fill="none" stroke="#5a98e6" stroke-width="1.6"/>', "A thin line: one of several ways on");
+  item('<rect x="2" y="3" width="48" height="22" rx="5" fill="none" stroke="#3fbfa0" stroke-width="1.6" stroke-dasharray="6 4"/>', "Dashed: optional, and can be skipped");
+  item('<circle cx="26" cy="14" r="10" fill="#ff6b61"/><text x="26" y="19" text-anchor="middle" font-size="14" font-weight="600" fill="#1a0907" font-family="sans-serif">x</text>', "A hard death can happen here");
+  item('<path d="M2 14H50" stroke="#7b97a3" stroke-width="2"/>', "A way that is always open");
+  item('<path d="M2 14H50" stroke="#e3a43c" stroke-width="2.4" stroke-dasharray="7 5"/><rect x="21" y="9" width="10" height="10" transform="rotate(45 26 14)" fill="#e3a43c"/>', "Needs something done first (hover the line)");
+  item('<path d="M2 14H44" stroke="#7b97a3" stroke-width="2.4"/><path d="M42 9L52 14L42 19z" fill="#7b97a3"/>', "One way: you cannot come back");
+  item('<path d="M2 14H44" stroke="#ff6b61" stroke-width="2.4" stroke-dasharray="7 5"/><path d="M42 9L52 14L42 19z" fill="#ff6b61"/>', "Kills you if you are carrying marked treasure");
+}
+build();
+document.getElementById("fade").addEventListener("change", e => { document.body.classList.toggle("fade", e.target.checked); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") hideTip(); });
+document.addEventListener("scroll", () => { if (!tip.hidden && tipOwner) hideTip(); }, { passive: true });
+</script>
+</body>
+</html>

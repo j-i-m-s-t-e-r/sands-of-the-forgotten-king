@@ -1,0 +1,207 @@
+examine page
+examine sacks
+get matches
+get german tea
+light fire
+enter tent
+eat rations
+make tea
+drink tea
+sleep
+d
+n
+examine panels
+n
+n
+examine cup
+open sarcophagus
+get orb
+get cup
+get collar
+n
+climb statue
+wear stone
+clean stone
+w
+e
+w
+n
+cut rope
+d
+get bracelet
+pour water in hole
+fill skin
+pour water in hole
+fill skin
+pour water in hole
+get key
+w
+listen jackal
+listen ibis
+listen falcon
+listen cat
+write what the pyramid marks the pyramid keeps in the sand
+get scarab
+s
+examine notes
+get pickaxe
+cut rope
+jump
+s
+examine glyphs
+turn first mirror east
+turn second mirror south
+turn third mirror east
+put glass on stand
+unlock door
+e
+open sarcophagus
+get mask
+get orb
+e
+examine lintels
+play flute middle
+n
+talk snake
+answer a debt
+cut ropes
+open sarcophagus
+get orb
+score
+s
+w
+get falcon
+s
+examine frieze
+s
+examine voss
+examine notes
+get seed pearl
+swallow pearl
+get ingot
+get ring
+s
+dig rubble
+s
+clap
+go to the east wall
+clap
+push wall
+cut ropes
+open sarcophagus
+get orb
+n
+n
+n
+n
+n
+w
+s
+talk mummy
+about egypt
+unwrap mummy
+examine beam
+get hook
+tie bandages to hook
+swing
+yes
+remove stone
+drop stone
+drop gold orb
+drop green orb
+drop crimson orb
+drop blue orb
+drop skull
+drop mask
+drop cup
+drop scarab
+drop falcon
+drop ingot
+drop ring
+drop collar
+drop bracelet
+examine blade
+examine tablet
+examine votive
+talk ghost
+ask ghost about blade
+ask ghost about tablet
+ask ghost about votive
+ask ghost about the mark
+get all
+e
+turn star ring to jackal
+turn land ring to river
+n
+get crook
+get flail
+get pectoral
+w
+n
+n
+d
+d
+d
+d
+d
+d
+d
+put gold orb on pillar
+e
+put crimson orb on pillar
+s
+put green orb on pillar
+w
+put blue orb on pillar
+e
+n
+u
+u
+u
+u
+u
+u
+u
+s
+e
+e
+wear mask
+d
+remove mask
+drop mask
+drop stone
+drop cup
+drop collar
+drop bracelet
+drop scarab
+drop skull
+drop falcon
+drop ingot
+drop ring
+drop crook
+drop flail
+drop pectoral
+n
+board lift
+look
+look
+enter sarcophagus
+talk pharaoh
+about yourself
+about where
+about how far
+about alive
+about the pyramid
+about the treasure
+about the others
+about voss
+about mcdaniels
+about the roman
+about the djinn
+about the pillars
+about the pearl
+about the lift
+about hart
+about how long
+about going home
+yes

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sands of the Forgotten King</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game">
+    <header>
+      <h1>SANDS OF THE FORGOTTEN KING</h1>
+      <div id="subtitle">Cairo, 1936</div>
+    </header>
+    <div id="output" aria-live="polite"></div>
+    <div id="inputRow">
+      <span id="prompt">&gt;</span>
+      <input id="input" type="text" autofocus autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" placeholder="Type a command, then press Enter (try LOOK)" aria-label="Command">
+      <button id="send" type="button">ENTER</button>
+    </div>
+    <div id="hint">Your progress saves automatically on this device. Type SAVE or LOAD at any time, or HELP for commands.</div>
+  </div>
+
+  <script src="world-data.js"></script>
+  <script src="game-logic.js"></script>
+  <script src="engine.js"></script>
+</body>
+</html>

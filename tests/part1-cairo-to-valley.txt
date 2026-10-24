@@ -1,0 +1,67 @@
+open case
+use aftershave
+examine telegram
+examine mirror
+open briefcase
+n
+n
+ask curator about pyramid
+ask curator about supplies
+s
+w
+ask hassan about pyramid
+e
+e
+n
+ask dealer about pen
+wear fez
+s
+s
+give knife to smith
+n
+show knife
+give comb to bald man
+buy amulet
+e
+give amulet to kasim
+ask kasim about pyramid
+s
+buy camel
+s
+give jacket to vendor
+wear sunglasses
+n
+n
+w
+w
+w
+w
+buy tea
+e
+e
+e
+e
+s
+w
+w
+w
+examine pool
+drink pool
+water camel
+give wallet to vendor
+eat dates
+drink water
+w
+throw stone n
+n
+throw stone w
+w
+talk teller
+give tarot to teller
+give teabags to host
+drink tea
+w
+n
+n
+e
+e

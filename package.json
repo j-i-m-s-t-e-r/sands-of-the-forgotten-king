@@ -1,0 +1,10 @@
+{
+  "name": "sands-of-the-forgotten-king",
+  "version": "1.0.0",
+  "description": "A 1930s Egypt text adventure for the browser. Working title: ENTOMBED.",
+  "private": true,
+  "scripts": {
+    "test": "node tests/run-playthrough.js",
+    "build-map": "node tools/build-map.js"
+  }
+}

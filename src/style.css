@@ -1,0 +1,150 @@
+/* Sands of the Forgotten King: amber-on-black terminal, fluid for any device. */
+:root {
+  --bg: #0b0e08;
+  --panel: #141a0e;
+  --fg: #d9c98a;
+  --amber: #e8b84b;
+  --edge: #4a3f22;
+  --box: #8a6f2c;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Courier New', Courier, monospace;
+  /* Text grows gently with the window: ~15px on a phone, ~20px on a big monitor. */
+  font-size: clamp(15px, 0.9vw + 11px, 20px);
+  -webkit-text-size-adjust: 100%;
+}
+
+#game {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;            /* tracks the real visible height on phones */
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: max(12px, env(safe-area-inset-top)) clamp(12px, 3vw, 36px) max(12px, env(safe-area-inset-bottom));
+}
+
+header {
+  flex: none;
+  border-bottom: 1px solid var(--edge);
+  padding-bottom: 8px;
+}
+
+h1 {
+  margin: 0;
+  color: var(--amber);
+  font-size: clamp(1rem, 4vw, 1.6rem);
+  letter-spacing: clamp(1px, 0.5vw, 5px);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+#subtitle {
+  margin-top: 2px;
+  color: #a89a63;
+  font-size: 0.85em;
+  letter-spacing: 3px;
+}
+
+#output {
+  flex: 1 1 auto;
+  min-height: 0;             /* lets the output shrink and scroll instead of pushing the input off screen */
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  line-height: 1.5;
+  padding: 12px 8px 12px 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.line { margin-bottom: 2px; }
+
+/* Fixed-width diagrams (the map of Cairo) stay aligned and scroll sideways on narrow screens. */
+.line.map {
+  white-space: pre;
+  overflow-x: auto;
+  font-size: min(1em, 2.6vw);
+  line-height: 1.25;
+  margin: 6px 0;
+}
+
+/* The command box: a clearly visible rounded field that lights up when it has focus. */
+#inputRow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 2px solid var(--box);
+  border-radius: 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+#inputRow:focus-within {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgba(232, 184, 75, 0.25), 0 0 16px rgba(232, 184, 75, 0.25);
+}
+
+#prompt {
+  color: var(--amber);
+  font-weight: bold;
+  font-size: 1.15em;
+}
+
+#input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f2e6b0;
+  caret-color: var(--amber);
+  font-family: inherit;
+  font-size: max(16px, 1.1em);   /* 16px minimum stops phones zooming in on focus */
+  padding: 4px 0;
+}
+
+#input::placeholder { color: #7d7248; }
+
+#send {
+  flex: none;
+  background: var(--amber);
+  color: #1a1405;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-weight: bold;
+  font-size: 0.85em;
+  letter-spacing: 1px;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+#send:active { transform: translateY(1px); }
+
+#hint {
+  flex: none;
+  margin-top: 6px;
+  color: #8c8050;
+  font-size: 0.75em;
+  text-align: center;
+}
+
+/* Very short windows (landscape phones): shrink the header to leave room to play. */
+@media (max-height: 480px) {
+  #subtitle { display: none; }
+  h1 { font-size: 0.95rem; }
+  #hint { display: none; }
+}
