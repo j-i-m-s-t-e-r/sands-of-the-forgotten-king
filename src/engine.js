@@ -10,7 +10,7 @@ const VERBS = ["look", "inventory", "score", "examine", "read", "open", "get", "
                "drop", "throw", "eat", "water", "restart", "climb", "cut", "light", "extinguish",
                "jump", "play", "listen", "write", "turn", "pour", "fill", "unlock", "answer", "say",
                "unwrap", "tie", "swing", "clap", "shout", "push", "dig", "go", "walk", "yes", "knock",
-               "place", "insert", "board", "stand", "enter", "leave", "step", "no", "return", "stay", "save", "load", "clean", "brush", "scrub", "apply", "splash", "spray",
+               "place", "insert", "board", "stand", "enter", "leave", "step", "no", "return", "stay", "save", "load", "clean", "brush", "scrub", "apply", "splash", "spray", "squirt", "wash", "rinse", "lick", "taste",
                "toss", "lob", "chuck", "feed", "lead", "let", "trade", "swap", "exchange", "barter", "mount", "ride", "dismount", "swallow", "surrender", "close", "furl", "make", "build", "brew", "boil", "kindle", "cook", "fry", "roast", "grill", "start", "sleep", "rest", "doze", "nap", "share"];
 
 // Natural phrasings a player might type instead of a verb+noun command. Checked
@@ -97,10 +97,15 @@ let state = null;
 let currentRoom = null;
 let history = [];
 let historyPos = 0;
+let ROOM_TEXT = "";          // what has been said in this room so far, to tell "mentioned" from "not here"
+let SILENT = false;          // while true, print() writes nothing (used to replay a route)
+let NO_AUTOSAVE = false;     // while true, autosave is paused
+let PRISTINE_JSON = null;    // the fresh game, kept so a debug jump can start from scratch
 
 function $(id) { return document.getElementById(id); }
 
 function addLine(text, cls) {
+  if (SILENT) return;
   const out = $("output");
   const line = document.createElement("div");
   line.className = "line" + (cls ? " " + cls : "");
@@ -109,7 +114,34 @@ function addLine(text, cls) {
 }
 
 // Text wrapped in [[map]] ... [[/map]] is shown as a fixed-width block so diagrams stay aligned.
+// Remember the prose printed in this room (descriptions and the results of things you did), not the echo of
+// your own commands or short system replies.
+function rememberText(text) {
+  const t = String(text);
+  if (/^\s*>/.test(t) || t.length < 60) return;
+  ROOM_TEXT = (ROOM_TEXT + " " + t.toLowerCase()).slice(-20000);
+}
+
+// Is the thing the player typed something this room has already mentioned (in its description, or in a
+// result such as the photograph tucked into a mirror frame)?
+function mentionedHere(word) {
+  const STOP = new Set(["the", "a", "an", "my", "your", "it", "that", "this", "them", "all", "everything", "some", "one", "here", "there"]);
+  const toks = String(word || "").toLowerCase().replace(/[^a-z' ]/g, " ").split(/\s+/).filter(t => t.length >= 3 && !STOP.has(t));
+  if (!toks.length) return false;
+  const main = toks[toks.length - 1].replace(/'s$/, "");
+  if (main.length < 3) return false;
+  for (const w of new Set(ROOM_TEXT.split(/[^a-z']+/))) {
+    if (w.length >= 3 && (w.startsWith(main) || (w.length >= 4 && main.startsWith(w)))) return true;
+  }
+  return false;
+}
+
+function notSeen(word) {
+  return mentionedHere(word) ? "Nothing else to say about that." : "You don't see that here.";
+}
+
 function print(text) {
+  rememberText(text);
   const parts = String(text).split(/\[\[map\]\]|\[\[\/map\]\]/);
   if (parts.length === 3) {
     addLine(parts[0]);
@@ -301,6 +333,7 @@ function readSave(key) {
 }
 
 function restoreFrom(snap) {
+  ROOM_TEXT = "";
   const s = snap.state;
   ["examined", "metNpcs", "worn", "inKit"].forEach(k => { s[k] = new Set(s[k]); });
   state = s;
@@ -327,12 +360,69 @@ function doLoad() {
 }
 
 function autoSave() {
-  if (state.flags.gameOver) return;
+  if (NO_AUTOSAVE || state.flags.gameOver) return;
   writeSave(SAVE_AUTO);
+}
+
+
+// ---------- Debug: jump to any room with the best-score inventory for it ----------
+// Type  **debug : valley   (also "debug valley", "**debug list").  It replays the full-score route,
+// silently, up to the first time you stand in that room. It works when the page is opened from a
+// file or from localhost, or when the address contains ?debug; on a public site it is switched off.
+function debugAllowed() {
+  if (typeof location === "undefined") return true;            // headless tests
+  const host = location.hostname || "";
+  return location.protocol === "file:" || host === "localhost" || host === "127.0.0.1" || /[?&#]debug\b/.test(location.href);
+}
+
+function debugNorm(s) {
+  return String(s).toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\b(the|of|a)\b/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function debugFindRoom(arg) {
+  const ids = Object.keys(WORLD.rooms);
+  const raw = arg.toLowerCase().trim();
+  if (ids.includes(raw)) return [raw];
+  const q = debugNorm(arg);
+  if (!q) return [];
+  let hit = ids.filter(id => debugNorm(WORLD.rooms[id].name) === q || debugNorm(id) === q);
+  if (hit.length) return hit;
+  hit = ids.filter(id => debugNorm(id).startsWith(q));
+  if (hit.length) return hit;
+  return ids.filter(id => { const n = debugNorm(WORLD.rooms[id].name); return n.includes(q) || (n.length > 3 && q.includes(n)); });
+}
+
+function doDebug(arg) {
+  if (typeof DEBUG_ROUTE === "undefined" || !PRISTINE_JSON) { print("[debug] No route file is loaded."); return; }
+  const ids = Object.keys(WORLD.rooms);
+  if (!arg || /^(list|help|\?)$/i.test(arg)) {
+    print("[debug] **debug : <room> takes you to that room with the best-score inventory for it. Rooms: " + ids.join(", ") + ".");
+    return;
+  }
+  const hits = debugFindRoom(arg);
+  if (!hits.length) { print(`[debug] No room matches "${arg}". Try **debug list.`); return; }
+  if (hits.length > 1) { print("[debug] Which room? " + hits.map(id => id + " (" + WORLD.rooms[id].name + ")").join("; ")); return; }
+  const target = hits[0];
+  restoreFrom(JSON.parse(PRISTINE_JSON));
+  let steps = 0;
+  SILENT = true; NO_AUTOSAVE = true;
+  try {
+    if (state.currentRoomId !== target) {
+      for (const c of DEBUG_ROUTE) {
+        handleCommand(c); steps++;
+        if (state.currentRoomId === target) break;
+      }
+    }
+  } finally { SILENT = false; NO_AUTOSAVE = false; }
+  state.pendingNpc = null; state.pendingDisambig = null; state.pendingGive = null; state.pendingThrow = null;
+  state.pendingSwing = false; state.pendingJump = false; state.pendingSleep = false;
+  print(`[debug] Jumped to ${WORLD.rooms[target].name} (${steps} route commands replayed). Score ${state.score}/${WORLD.maxScore}.`);
+  describeRoom();
 }
 
 // Enter a room: set it, describe it, then give the story a chance to react.
 function goTo(roomId, describe) {
+  ROOM_TEXT = "";
   state.currentRoomId = roomId;
   currentRoom = WORLD.rooms[roomId];
   state.pendingNpc = null;
@@ -366,6 +456,8 @@ function doInventory() {
     const tags = [];
     if (state.worn.has(id)) tags.push("worn");
     if (isExamined(id)) tags.push(obj.examinedLabel || "examined");
+    const extra = GAME.inventoryTag ? GAME.inventoryTag(state, id) : null;
+    if (extra) tags.push(extra);
     return obj.name + (tags.length ? ` (${tags.join(", ")})` : "");
   };
   const loose = state.inventory.filter(id => !state.inKit.has(id));
@@ -390,6 +482,11 @@ function doScore() {
 // show an alternate description if one's defined, so the world reflects
 // what the player has already done.
 function doExamine(target) {
+  // "Your camel" is always the player's own animal, even where other camels are lying about.
+  if (GAME.examineSpecial && /^(my |your |the )?camel$/i.test((target || "").trim())) {
+    const mine = GAME.examineSpecial(state, target);
+    if (mine) { print(mine); return; }
+  }
   if (!target) { print("Examine what?"); return; }
   if (isDark()) {
     const id = findObjectId(target);
@@ -417,7 +514,7 @@ function doExamine(target) {
     return;
   }
   if (special) { print(special); return; }
-  print("You don't see that here.");
+  print(notSeen(target));
 }
 
 // Lower-case name for use in a sentence (objects may override with `short`).
@@ -487,7 +584,7 @@ function doGet(target) {
   }
   if (!objId) { const unseen = GAME.getUnseen ? GAME.getUnseen(state, target) : null;
     if (unseen) { print(unseen); return; }
-    print("You don't see that here."); return; }
+    print(notSeen(target)); return; }
   if (!roomObjectsHere().includes(objId)) { const held = findObjectId(target);
     if (held && state.inventory.includes(held)) {
       const nm = WORLD.objects[held].name;
@@ -495,7 +592,7 @@ function doGet(target) {
       print(state.inKit.has(held) ? `The ${nm.toLowerCase()} ${plural ? "are" : "is"} already in your kit-bag.` : `You already have the ${nm.toLowerCase()}.`);
       return;
     }
-    print("You don't see that here."); return; }
+    print(notSeen(target)); return; }
   const obj = WORLD.objects[objId];
   if (!obj.portable) {
     print(obj.noTakeMsg || `The ${obj.name.toLowerCase()} belongs right where it is — no reason to take it.`);
@@ -529,9 +626,24 @@ function doTalk(target) {
   print(typeof npc.greet === "function" ? npc.greet(state) : npc.greet);
   if (GAME.onTalk) { const extra = GAME.onTalk(state, npcId); if (extra) print(extra); }
   state.pendingNpc = npcId;
-  if (npc.topics && npc.topics.length) {
-    print(`(You could ask ${npc.name} about: ${npc.topics.join(", ")}.)`);
+  const topicList = (GAME.topicsFor && GAME.topicsFor(state, npcId)) || npc.topics;
+  if (topicList && topicList.length) {
+    print(`(You could ask ${npc.name} about: ${topicList.join(", ")}.)`);
   }
+}
+
+// A topic typed as the first four or more letters of a listed topic ("pyra" for "pyramid") means that topic.
+function expandTopic(npcId, topic) {
+  const npc = WORLD.npcs[npcId];
+  const list = (GAME.topicsFor && GAME.topicsFor(state, npcId)) || (npc && npc.topics) || [];
+  const words = new Set();
+  list.forEach(t => String(t).toLowerCase().split(/\s+/).forEach(w => { if (w.length >= 4) words.add(w); }));
+  return String(topic || "").split(/(\s+)/).map(tok => {
+    const t = tok.toLowerCase().replace(/[^a-z']/g, "");
+    if (t.length < 4 || words.has(t)) return tok;
+    const hits = [...words].filter(w => w.startsWith(t));
+    return hits.length === 1 ? hits[0] : tok;
+  }).join("");
 }
 
 function doAsk(rest) {
@@ -569,12 +681,17 @@ function doAsk(rest) {
   }
   state.pendingNpc = npcId;
   maybeFirstMeet(npcId);
-  const response = GAME.handleTopic(state, npcId, topic);
+  const response = GAME.handleTopic(state, npcId, expandTopic(npcId, topic));
   print(response || `"I know nothing of this," ${WORLD.npcs[npcId].name} says.`);
 }
 
 function doGive(rest) {
   if (/camel/i.test(rest) && /water|drink|skin/i.test(rest)) { doWater("camel"); return; }
+  if (/camel/i.test(rest) && /biscuit|custard|cream|treat/i.test(rest)) { print(GAME.feedCamelBiscuit(state)); return; }
+  if (/biscuit|custard|cream/i.test(rest) && /\b(djinn|genie)\b/i.test(rest) && GAME.giveBiscuitDjinn) {
+    const dj = GAME.giveBiscuitDjinn(state);
+    if (dj && state.inventory.includes("custardcreams")) { print(dj); return; }
+  }
   const toIdx = rest.toLowerCase().indexOf(" to ");
   if (toIdx === -1) {
     const here = currentRoom.npcs;
@@ -620,7 +737,11 @@ function doWear(target) {
   const objId = findObjectId(target);
   if (!objId || !state.inventory.includes(objId)) { print("You don't have that."); return; }
   const obj = WORLD.objects[objId];
-  if (!obj.wearable) { print("You can't wear that."); return; }
+  if (!obj.wearable) {
+    const other = GAME.handleWearOther ? GAME.handleWearOther(state, objId) : null;
+    print(other || "You can't wear that.");
+    return;
+  }
   if (state.worn.has(objId)) { print("You're already wearing that."); return; }
   state.worn.add(objId);
   print((GAME.handleWear && GAME.handleWear(state, objId)) || `You put on the ${obj.name.toLowerCase()}.`);
@@ -643,6 +764,9 @@ function doDrink(rest) {
 
 // SHOW / WAVE / HOLD / POINT / USE <item> (an optional "to/at <target>" is ignored)
 function doUse(verb, rest) {
+  // "spray the milestone with aftershave" means "spray aftershave on the milestone"
+  const wm = rest.match(/^(.+?)\s+with\s+(.+)$/i);
+  if (wm && /^(spray|squirt|splash|apply)$/.test(verb)) rest = wm[2] + " on " + wm[1];
   const word = rest.replace(/\s+(to|at|on)\s+.*$/i, "").trim();
   if (!word) { print(`${verb.charAt(0).toUpperCase() + verb.slice(1)} what?`); return; }
   const objId = findObjectId(word);
@@ -761,7 +885,7 @@ function doAnswer(rest) {
   if (GAME.handleSay) { const r = GAME.handleSay(state, rest); if (r) { print(r); return; } }
   if (!state.pendingNpc || !currentRoom.npcs.includes(state.pendingNpc)) { print("There is nobody to answer."); return; }
   const npc = WORLD.npcs[state.pendingNpc];
-  const response = GAME.handleTopic(state, state.pendingNpc, rest.replace(/^(that|it is|it's)\s+/i, "").trim());
+  const response = GAME.handleTopic(state, state.pendingNpc, expandTopic(state.pendingNpc, rest.replace(/^(that|it is|it's)\s+/i, "").trim()));
   print(response || `"I know nothing of this," ${npc.name} says.`);
 }
 
@@ -771,6 +895,8 @@ function doBuy(rest) {
 
 function handleCommandInner(raw) {
   let input = raw.trim();
+  const dbg = input.match(/^\s*\*{0,2}\s*debug\b\s*:?\s*(.*)$/i);
+  if (dbg && debugAllowed()) { doDebug(dbg[1].trim()); return; }
   if (!input) return;
   print(`\n> ${input}`);
 
@@ -838,7 +964,7 @@ function handleCommandInner(raw) {
       print("They're not here anymore.");
       state.pendingNpc = null;
     } else {
-      const response = GAME.handleTopic(state, state.pendingNpc, topic);
+      const response = GAME.handleTopic(state, state.pendingNpc, expandTopic(state.pendingNpc, topic));
       print(response || `"I know nothing of this," ${npc.name} says.`);
     }
     return;
@@ -878,7 +1004,10 @@ function handleCommandInner(raw) {
     case "share": if (/camel/i.test(rest) || /water/i.test(rest)) { doWater("camel"); return; } print("Share what?"); return;
     case "throw": case "toss": case "lob": case "chuck": doThrow(rest); return;
     case "feed": case "lead": case "let":
-      if (/camel/i.test(rest)) { doWater("camel"); return; }
+      if (/camel/i.test(rest)) {
+        if (/biscuit|custard|cream|treat/i.test(rest)) { print(GAME.feedCamelBiscuit(state)); return; }
+        doWater("camel"); return;
+      }
       print(verb === "let" ? "Let what?" : "You can't do that."); return;
     case "eat": case "swallow": doEat(rest); return;
     case "water": doWater(rest); return;
@@ -914,7 +1043,9 @@ function handleCommandInner(raw) {
     case "cut": doCut(rest); return;
     case "light": case "extinguish": doLight(verb, rest); return;
     case "clean": case "brush": case "scrub": doGeneric("Clean", rest, "You can't clean that."); return;
-    case "apply": case "splash": case "spray": doUse(verb, rest); return;
+    case "apply": case "splash": case "spray": case "squirt": doUse(verb, rest); return;
+    case "wash": case "rinse": doGeneric("Wash", rest, "You can't wash that."); return;
+    case "lick": case "taste": doGeneric("Taste", rest, "You decide against it."); return;
     case "trade": case "swap": case "exchange": case "barter": print(GAME.handleTrade(state, rest)); return;
     case "mount": case "ride": print(GAME.handleMount(state)); return;
     case "dismount": print(GAME.handleDismount(state)); return;
@@ -964,10 +1095,21 @@ function handleCommandInner(raw) {
   }
 }
 
+// A hard death: forget everything, clear the automatic save, and begin again in the hotel.
+function doHardReset() {
+  try { localStorage.removeItem(SAVE_AUTO); } catch (err) { /* nothing to clear */ }
+  const hasManual = !!readSave(SAVE_MANUAL);
+  restoreFrom(JSON.parse(PRISTINE_JSON));
+  print("\nA Cairo morning, 1936. You arrived last night off the boat from London with a headache, a hotel room, and a telegram you have read so many times on the voyage that it has gone soft at the folds.\n");
+  if (hasManual) print("(A game you saved yourself, with SAVE, can still be loaded: type LOAD.)");
+  describeRoom();
+}
+
 function handleCommand(raw) {
   if (!raw.trim()) return;
   const before = state.currentRoomId;
   handleCommandInner(raw);
+  if (state.hardReset) { doHardReset(); return; }
   if (GAME.afterCommand && !state.flags.gameOver) {
     const extra = GAME.afterCommand(state, before, raw);
     if (extra) print(extra);
@@ -989,6 +1131,7 @@ function init() {
   state.examined = new Set();
   state.pendingNpc = null;
   currentRoom = WORLD.rooms[state.currentRoomId];
+  PRISTINE_JSON = JSON.stringify(snapshot());
 
   print("SANDS OF THE FORGOTTEN KING");
   let canSave = true;

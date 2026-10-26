@@ -4,7 +4,9 @@
   "description": "A 1930s Egypt text adventure for the browser. Working title: ENTOMBED.",
   "private": true,
   "scripts": {
-    "test": "node tests/run-playthrough.js",
-    "build-map": "node tools/build-map.js"
+    "test": "node tests/run-playthrough.js && node tests/run-debug.js && node tests/run-rules.js && node tests/run-map.js",
+    "build-map": "node tools/build-map.js",
+    "build-debug": "node tools/build-debug-route.js",
+    "package": "cd src && zip -r ../sands-itch.zip . -x debug-route.js"
   }
 }

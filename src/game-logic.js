@@ -105,6 +105,12 @@ const GAME = {
         taxed: false,
         caseOpened: false,
         scented: false,
+        floorGone: false,
+        camelFed: 0,
+        gotBiscuits: false,
+        kasimProved: false,
+        kasimTold: false,
+        urineBoots: false,
         gaveComb: false,
         stoneCleaned: false,
         caseNudged: false,
@@ -145,8 +151,12 @@ const GAME = {
       surrendered: [],
       placed: [],
       stones: 0,
+      camelJustFed: false,
+      biscuits: 0,
       duneStage: 0,
-      ridgePos: 0
+      ridgePos: 0,
+      stormMoves: 0,
+      stormPath: []
     };
   },
 
@@ -156,39 +166,37 @@ const GAME = {
   },
 
   // Called when the player TALKs to or ASKs an NPC about a topic.
+  // Whitfield's briefing: the pyramid, Kasim, the glass, the kit-bag and the umbrella, all at once, for one reward.
+  curatorBriefing(state, withOpening) {
+    const f = state.flags;
+    f.askedCuratorPyramid = true;
+    f.hasSupplies = true;
+    ["glass", "supplies", "umbrella"].forEach(id => { if (!state.inventory.includes(id)) state.inventory.push(id); });
+    state.biscuits = 8;
+    ["wallet", "teabags", "tarot", "lamp", "waterskin", "rations", "custardcreams"].forEach(id => {
+      if (!state.inventory.includes(id)) state.inventory.push(id);
+      state.inKit.add(id);
+    });
+    const opening = "\"Pembroke. Thank God. Shut the door. I am, officially, cataloguing Ptolemaic pottery. Unofficially, I have been a good deal busier. Don't sit, there is no time. Listen.\"\n\n";
+    return (withOpening ? opening : "")
+      + "\"A pyramid, dear boy: buried to its tip in the sand somewhere west of the old caravan road, and nobody has catalogued it. There's a dealer, Kasim, out past the bazaar — bought a papyrus fragment last month he won't shut up about. He won't sell to me, not any longer: the police know my face.\" "
+      + "He glances at the door, like the words cost him something. \"I was sent to make the crossing myself, you understand. The Trustees were quite specific. Had it all arranged — waterskins, rations, a decent lamp. Then some very officious men from the local police took an interest in a crate of mine that turned out to have rather more opium in it than the manifest suggested. Not mine, I'll have you know — but try explaining provenance to a man with a truncheon. Provenance, as you may have gathered, has never been my strong suit. I'm confined to Cairo until it's sorted out, which is why you are here, and why I am very sorry about it.\"\n\n"
+      + "He pushes a canvas kit-bag across the desk. \"Take it. It has everything I had packed, bar my good sense. There are custard creams in there, too, so do try not to eat them all at once. Do look inside, Pembroke. Everything in it will come in handy.\" He presses a magnifying glass into your hand. \"You'll need this more than I will.\" Then he presses a large black umbrella on you as well. \"I'm not expecting rain, but you should expect some sun.\""
+      + this.award(state, 20, "briefed by Whitfield");
+  },
+
   // Returns a line of output, or null if this engine has no special handling
   // (engine.js falls back to the NPC's generic greet/desc in that case).
   handleTopic(state, npcId, topic) {
     topic = (topic || "").toLowerCase();
 
     if (npcId === "curator") {
-      if (topic.includes("suppl") || topic.includes("provision") || topic.includes("water") || topic.includes("food")) {
-        if (!state.flags.hasSupplies) {
-          state.flags.hasSupplies = true;
-          if (!state.inventory.includes("supplies")) state.inventory.push("supplies");
-          if (!state.inventory.includes("umbrella")) state.inventory.push("umbrella");
-          ["wallet", "teabags", "tarot", "lamp", "waterskin", "rations"].forEach(id => {
-            if (!state.inventory.includes(id)) state.inventory.push(id);
-            state.inKit.add(id);
-          });
-          return "\"Ah — that.\" He glances at the door, like the words cost him something. \"I was sent to make the "
-            + "crossing myself, you understand. The Trustees were quite specific. Had it all arranged — waterskins, rations, a decent lamp. Then some "
-            + "very officious men from the local police took an interest in a crate of mine that turned out to have "
-            + "rather more opium in it than the manifest suggested. Not mine, I'll have you know — but try explaining "
-            + "provenance to a man with a truncheon. Provenance, as you may have gathered, has never been my strong suit. I'm confined to Cairo until it's sorted out, which is why you are here, and why I am very sorry about it.\"\n\n"
-            + "He pushes a canvas kit-bag across the desk. \"Take it. And for heaven's sake get a camel — you'll not "
-            + "manage all this on foot, still less in your arms.\"\n\nHe presses a large black umbrella on you as well. \"I'm not expecting rain, but you should expect some sun.\""
-            + this.award(state, 10, "received supplies from Whitfield");
-        }
-        return "\"You've got everything I can spare. Don't lose it in a card game.\"";
-      }
-      if (topic.includes("pyramid") || topic.includes("tomb") || topic === "") {
-        if (!state.flags.askedCuratorPyramid) {
-          state.flags.askedCuratorPyramid = true;
-          if (!state.inventory.includes("glass")) state.inventory.push("glass");
-          return "\"A pyramid, dear boy: buried to its tip in the sand somewhere west of the old caravan road, and nobody has catalogued it. There's a dealer, Kasim, out past the bazaar — bought a papyrus fragment last month he won't shut up about. He won't sell to me, not any longer: the police know my face. Here—\" he presses a magnifying glass into your hand. \"You'll need this more than I will.\""
-            + this.award(state, 10, "learned about Kasim");
-        }
+      const briefed = state.flags.askedCuratorPyramid && state.flags.hasSupplies;
+      // The briefing, the supplies and the glass come together, whatever the player happens to ask first.
+      if (/pyra|tomb|tele|mission|\bcall|trip|quest|journey|errand|kasim|dealer|papyr|suppl|provision|water|food|\bbag|\bkit|umbrella|glass|lamp/.test(topic) || topic === "") {
+        if (!briefed) return this.curatorBriefing(state, true);
+        if (/kasim|dealer|papyr/.test(topic)) return "\"Kasim? Out past the bazaar. He has the papyrus and a nose for trouble, and he will not sell to me. Go and rattle his cage, not mine.\"";
+        if (/suppl|provision|water|food|\bbag|\bkit|umbrella|glass|lamp/.test(topic)) return "\"You've got everything I can spare. Do look in the bag, Pembroke. Everything in it will come in handy.\"";
         return "\"I've told you what I know. Go rattle Kasim's cage, not mine.\"";
       }
       if (topic.includes("voss")) {
@@ -220,8 +228,9 @@ const GAME = {
 
     if (npcId === "kasim") {
       if (topic.includes("pyramid") || topic.includes("tomb") || topic.includes("papyrus") || topic.includes("fragment") || topic.includes("scrap")) {
+        if (!state.flags.kasimProved) return this.kasimRefusal(state);
         if (!state.flags.gaveAmulet) {
-          return "\"I sell antiques, not gossip. And I don't sell antiques to strangers either.\"";
+          return "\"Show me something I want, old boy, and we will talk.\"";
         }
         if (state.flags.knowsLocation) {
           return "\"I've shown you all I have. The rest is your problem now.\"";
@@ -364,7 +373,13 @@ const GAME = {
         if (state.inventory.includes("dates") && state.dateCount > 0) return "\"You have dates already, my friend. Eat! Eat!\"";
         state.inventory.push("dates");
         state.dateCount = 6;
-        return "He tuts, laughs, and presses another basket on you. \"The oasis does not run out of dates.\"";
+        return "He tuts, laughs, and presses another basket on you. \"The oasis does not run out of dates.\"" + this.vendorBoots(state);
+      }
+      if (/boot|shoe|feet|foot|barefoot/.test(topic)) {
+        if (!state.flags.bootsWrecked) return "\"Your boots look fine to me, my friend. For now.\"";
+        if (!state.flags.gaveWallet) return "\"Boots? Everybody wants boots. Trade me something I might want.\"";
+        if (state.flags.gotGermanBoots) return "\"The German ones? Good boots. Do not lick them. (He wheezes.)\"";
+        return "\"Boots! A man without boots is a man without a future.\"" + this.vendorBoots(state);
       }
       if (topic.includes("water") || topic.includes("pool") || topic.includes("drink")) {
         if (state.flags.gaveWallet) return "\"Your skin is full, my friend. Drink from that, not from the pool. The pool is for the camels.\"";
@@ -406,10 +421,44 @@ const GAME = {
     return null;
   },
 
+  // Kasim will not talk business with a stranger who might be with the German.
+  kasimRefusal(state) {
+    const f = state.flags;
+    if (!f.kasimTold) {
+      f.kasimTold = true;
+      return "\"I sell antiques, not gossip. And I don't trust strangers either. Prove to me you are not with the German, otherwise, leave.\"";
+    }
+    return "\"Prove to me you are not with the German, otherwise, leave.\"";
+  },
+
+  // SHOW PASSPORT (TO KASIM / TO THE GUARD)
+  showPassport(state, rest) {
+    const r = (rest || "").toLowerCase();
+    const room = state.currentRoomId;
+    const toKasim = /kasim|dealer|antiques/.test(r) || (room === "antiquities" && !/guard/.test(r));
+    const toGuard = /guard/.test(r) || (room === "citygate" && !/kasim/.test(r));
+    if (toKasim && room === "antiquities") {
+      if (state.flags.kasimProved) return "\"Yes, yes, British. We have established this, old boy.\"";
+      state.flags.kasimProved = true;
+      return "Kasim takes the passport between two fingers, reads every page as though looking for the German in it, and hands it back with a smile like a drawer opening. Then, in a fake English accent: \"British. Please to meet you, old boy, as you say. Now, show me something I want.\"";
+    }
+    if (toGuard && room === "citygate") {
+      return "The guard takes the passport, reads the cover, and begins to laugh: a slow, rolling laugh that shakes the arch. \"Mad Dogs and Englishmen. It IS true!\" He hands it back, wiping an eye. \"Your passport means nothing to me, effendi. I can buy them anywhere here. You need more than a passport to cross the desert.\"";
+    }
+    return "You hold up your passport. Nobody here seems to care what nationality you are.";
+  },
+
   handleGive(state, objId, npcId) {
+    if (objId === "custardcreams") return this.giveBiscuit(state, npcId);
+    if (objId === "passport" && (npcId === "kasim" || npcId === "guard")) {
+      return this.showPassport(state, npcId === "kasim" ? "to kasim" : "to guard");
+    }
     if (objId === "amulet" && npcId === "kasim") {
       if (!state.inventory.includes("amulet")) {
         return "You don't have that.";
+      }
+      if (!state.flags.kasimProved) {
+        return "Kasim does not touch it. \"A gift from a man I cannot place? Prove to me you are not with the German first.\"";
       }
       state.inventory = state.inventory.filter(o => o !== "amulet");
       state.flags.gaveAmulet = true;
@@ -459,6 +508,7 @@ const GAME = {
       this.setSkin(state, "clean");
       if (!state.inventory.includes("dates")) { state.inventory.push("dates"); state.dateCount = 6; }
       return "He turns the wallet over in his hands, strokes the silver elephant with a reverent thumb, and tucks it inside his robe where no one will ever find it. \"A good trade. A very good trade.\" He takes your waterskin, sniffs the warm water in it, and with a tut of professional disgust pours it out onto the sand and refills it from his clay jug: cold, clean water, so cold it makes the goatskin sweat. Then he eats a date with great ceremony, and flicks the stone onto the sand beyond the palms. At once a dozen black beetles pour out of the ground, a glossy, clicking tide, and strip it clean in seconds. \"Do not walk where the beetles are,\" he says, quite casually, as if remarking on the weather. A basket of dates lands in your hands."
+        + this.vendorBoots(state)
         + this.award(state, 15, "traded the wallet at the oasis");
     }
     if ((objId === "teabags" || objId === "supplies") && npcId === "teaseller") {
@@ -590,11 +640,13 @@ const GAME = {
         + this.award(state, 5, "drank the mint tea");
     }
     if (state.currentRoomId === "valley" && /tea|mug/.test(what) && !state.inventory.includes("minttea")) {
-      if (!f.teaBrewed) return state.inventory.includes("germantea") ? "It is a dry packet. You would have to brew it first." : "You have no tea.";
+      if (!f.teaBrewed) return this.herePossess(state, "germantea") ? "It is a dry packet. You would have to brew it first." : "You have no tea.";
       if (f.teaDrunk) return "The mug is empty.";
       f.teaDrunk = true;
       state.thirst = 0; state.thirstShown = 0;
-      return "You drink it. It tastes like boiled boot polish, with undertones of cardboard and regret. Egad. It is also, undeniably, hot, and by the bottom of the mug you have almost stopped shivering.";
+      return f.teaEnglish
+        ? "You drink it. It is hot, strong, a little stewed and exactly right: the first thing to have gone according to plan since Southampton. By the bottom of the mug you feel, absurdly, equal to anything. Even the camel looks impressed."
+        : "You drink it. It tastes like boiled boot polish, with undertones of cardboard and regret. Egad. It is also, undeniably, hot, and by the bottom of the mug you have almost stopped shivering.";
     }
     if (what.includes("tea")) return this.handleTea(state);
     const poolish = /pool|oasis|lake|from the/.test(what);
@@ -623,6 +675,27 @@ const GAME = {
   },
 
   handleEat(state, what) {
+    // Whitfield's custard creams: eaten one at a time, and in a pinch a supper.
+    const w0 = String(what || "").toLowerCase();
+    if (/custard|cream|biscuit/.test(w0) && !/ration/.test(w0) && state.inventory.includes("custardcreams")) {
+      state.biscuits = Math.max(0, (state.biscuits || 0) - 1);
+      const left = state.biscuits;
+      let out;
+      if (!state.flags.gotBiscuits) {
+        state.flags.gotBiscuits = true;
+        out = "You eat a custard cream the proper way: top off first, the cream scraped with the teeth, the rest in two bites. It is, in the circumstances, magnificent. Whitfield, you reflect, is not entirely without redeeming features.";
+      } else if (left === 0) {
+        out = "You eat the last custard cream, slowly. It is gone, and so, a little, is England.";
+      } else {
+        out = "You eat another custard cream. It is no less magnificent for being the " + (left === 6 ? "second" : "next") + ".";
+      }
+      if (left === 0) { state.inventory = state.inventory.filter(i => i !== "custardcreams"); state.inKit.delete("custardcreams"); }
+      if (state.currentRoomId === "valley" && !state.flags.entranceFound) {
+        state.flags.nightFed = true;
+        out += " It is not much of a supper, but it is something.";
+      }
+      return out;
+    }
     what = (what || "").toLowerCase();
     // "swallow it" / "swallow" / "swallow my choice" mean the pearl you are holding
     if (state.currentRoomId === "treasury" && state.flags.pearlHeld && state.inventory.includes(state.flags.pearlHeld)
@@ -652,7 +725,7 @@ const GAME = {
     if (state.currentRoomId === "valley" && /ration|tin|biscuit|food|meat|beef|bully|supper|dinner/.test(what)) {
       const f = state.flags;
       if (f.entranceFound) return "You are not hungry. You slept like the dead and ate like the living.";
-      const tin = /tin|meat|rindfleisch|cow/.test(what) && state.inventory.includes("tinmeat");
+      const tin = /tin|meat|rindfleisch|cow/.test(what) && this.herePossess(state, "tinmeat");
       if (/meat|rindfleisch/.test(what) && !tin) return "You have no meat. The sacks, perhaps.";
       if (tin) {
         if (!f.tinOpened) return "It is a sealed tin. You would have to open it first.";
@@ -661,7 +734,7 @@ const GAME = {
         return "You eat the meat off the flat stone with your fingers, burning them, and do not care. It is salty, smoky, rich and astonishingly good: whatever fifteen years in a tin did to it, it did it in your favour. It is, you decide, aged to perfection.";
       }
       f.nightFed = true;
-      return "You open a tin of bully beef, and eat it with the penknife's one good point, and then a ship's biscuit, which is hard enough to chip a tooth and just as welcome. " + (f.nightFire ? "The fire warms the beef a little, which does it no harm." : "It is cold, and so are you.");
+      return "You open a tin of bully beef, and eat it off the point of your penknife, and then a ship's biscuit, which is hard enough to chip a tooth and just as welcome. " + (f.nightFire ? "The fire warms the beef a little, which does it no harm." : "It is cold, and so are you.");
     }
     if (/ration|tin|biscuit|food/.test(what)) return "You are not hungry enough yet. Save the rations for the crossing.";
     return null;
@@ -788,7 +861,7 @@ const GAME = {
   // The Djinn appears whenever hieroglyphs are read without the Stone.
   // Empty-handed: a dry warning. Carrying marked treasure: a tax of one piece.
   djinn(state) {
-    const marked = state.inventory.filter(id => WORLD.objects[id].marked);
+    const marked = state.inventory.filter(id => WORLD.objects[id].marked && id !== "rosetta");   // the guest's Stone is never taxed
     let out = "\nThe air behind you turns cold and smells of struck matches. When you turn, a tall, impossibly thin figure of blue-grey smoke is leaning against the wall, in a gold waistcoat and a turban the size of a pumpkin, his long, sorrowful face turned to the carvings, the nails on his hands two inches of polished jade. He does not look at you. ";
     if (marked.length) {
       const id = marked[0];
@@ -862,6 +935,12 @@ const GAME = {
         + this.award(state, 20, "took the Rosetta Stone");
     }
     if (/rope/.test(r) && state.currentRoomId === "wellshaft") return "The rope is the way down. Use D.";
+    if (/pole|telegraph|wire|bars|ladder|rung/.test(r) && state.currentRoomId === "desertroad") {
+      return state.worn.has("sunglasses")
+        ? "You negotiate crude metal bars hammered into the pole at spaces alternately fit for a giant and then a mouse, and see what looks like a busy oasis ahead. Civilisation at last."
+        : "You swarm up the pole, and at the top you peer through the shimmering glare, eyes almost closed, and see a gathering of moving dots. Smoke rising. Either an oasis, or something being barbequed alive. You know the feeling by now.";
+    }
+    if (/milestone/.test(r) && state.currentRoomId === "desertroad") { state.flags.urineBoots = true; return "You stand on the milestone. The view is the same, only more so. Hopefully the smell of urine now on your boots will not attract mosquitoes."; }
     return null;
   },
 
@@ -979,8 +1058,8 @@ const GAME = {
     if (state.flags.doorUnlocked) return "The door is already unlocked.";
     if (!state.inventory.includes("woodenkey")) return "You have nothing to unlock it with.";
     state.flags.doorUnlocked = true;
-    return "A heavy wooden door, black with age, stands at the end of the passage, with a keyhole in the shape of a small jackal's head. You fit the key. It turns with a groan like a sigh, and the door swings inward on the smell of old resin."
-      + this.award(state, 10, "unlocked the burial chamber");
+    return "A heavy wooden door, black with age, stands at the end of the passage, with a keyhole in the shape of a small jackal's head. You fit the key. It turns with a groan like a sigh, and the door swings inward on the smell of beeswax and dust."
+      + this.award(state, 10, "unlocked the way east");
   },
 
   handleListen(state, rest) {
@@ -1024,6 +1103,7 @@ const GAME = {
     if (roomId === "tunnel") return keys.filter(k => !((k === "s" || k === "d") && !f.dug));
     if (roomId === "echoes") return ["n", "s", "e", "w"];
     if (roomId === "stairway") return keys.filter(k => k !== "u");
+    if (roomId === "antechamber" && (f.floorGone || f.leftWeighing)) return keys.filter(k => k !== "s");
     if (roomId === "mirrors") return keys.filter(k => !(k === "e" && !f.blockCut));
     if (roomId === "starchart") return keys.filter(k => !(k === "n" && !f.starDoor));
     if (roomId === "serpent") return keys.filter(k => !(k === "w" && !f.serpentDone));
@@ -1208,7 +1288,11 @@ const GAME = {
     if (state.pendingSwing) return this.handleSwing(state, "");
     if (state.pendingJump) return this.handleJump(state, "");
     if (state.pendingSleep) return this.handleSleep(state);
-    if (state.choicePending && state.currentRoomId === "platform") return this.endYes(state);
+    if (state.choicePending && state.currentRoomId === "platform") {
+      if (!state.flags.pillarsAll) return this.endLuck(state);
+      if (!state.flags.offerMade) return this.pharaohOffer(state);
+      return this.endYes(state);
+    }
     return null;
   },
 
@@ -1372,7 +1456,71 @@ const GAME = {
     return "You find you have no wish to do anything but enter the sarcophagus.";
   },
 
+  // ---- custard creams as a gift ----
+  useBiscuit(state) {
+    state.biscuits = Math.max(0, (state.biscuits || 0) - 1);
+    if (state.biscuits === 0) { state.inventory = state.inventory.filter(i => i !== "custardcreams"); state.inKit.delete("custardcreams"); }
+  },
+
+  feedCamelBiscuit(state) {
+    const f = state.flags;
+    if (!state.inventory.includes("custardcreams")) return "You have no biscuits to offer.";
+    if (!f.hasCamel) return "You don't have a camel.";
+    if (!this.rideable.includes(state.currentRoomId)) return state.currentRoomId === "camp" ? "Your camel is off with the herd, among the goats." : "Your camel is not here; she is waiting outside.";
+    if (state.currentRoomId === "ridge") return "You offer the camel a custard cream. She turns her head away from it, and does not turn it back. Fear has made the beast lose its appetite.";
+    const restraint = "\"Restraint, Pembroke. Restraint,\" you say to yourself. No civilised man should underestimate the power of the custard cream.";
+    if (state.camelJustFed) return "The camel stamps a hoof for more. " + restraint;
+    this.useBiscuit(state);
+    const before = f.camelFed || 0;
+    f.camelFed = before + 1;
+    state.camelJustFed = true;
+    if (state.currentRoomId === "dunes" && before >= 1) {
+      let t = "You offer the camel another custard cream. She takes it, closes her eyes for exactly one second, and opens them again with a new and terrible purpose. Without a word from you she sets off across the dunes. The slopes that have swallowed better men hold under her feet as though poured in concrete; the beetles, who have never seen anything like her, part before her like a congregation. Whatever she knows about sand, she did not learn it from a book. In no time at all the dunes fall away to show smoke and the glint of copper: a bell, voices, the smell of goat.";
+      if (!f.duneStage2) { f.duneStage2 = true; t += this.award(state, 10, "crossed the Shifting Dunes"); }
+      state.duneStage = 0;
+      state.forceMove = "camp";
+      return t;
+    }
+    if (before === 0) return "You offer one custard cream to the camel on the flat of your hand. She chews it lopsidedly for a few seconds, and then her ears prick up and she stamps a hoof for more. " + restraint;
+    return "She takes another custard cream with the air of a duchess accepting a duty, chews it lopsidedly, and gives you a look of purest love.";
+  },
+
+  // GIVE BISCUIT TO <someone>
+  giveBiscuit(state, npcId) {
+    if (npcId === "pharaoh") {
+      this.useBiscuit(state);
+      return "The Pharaoh takes the biscuit between finger and thumb and holds it up to the stars. \"Is that a custard cream? I have heard legend of such delicacies. Most kind.\"";
+    }
+    if (npcId === "kasim") {
+      this.useBiscuit(state);
+      return "Kasim accepts the biscuit between two fingers, as though it were evidence. \"Thank you,\" he says, with enormous sarcasm. \"Unfortunately, I have no treasure equal to your trade, so I must decline.\"";
+    }
+    if (npcId === "hassan") {
+      this.useBiscuit(state);
+      state.flags.coffeeDrunk = true;
+      return "Hassan presses a hand to his heart. \"Effendi, my honour: how I have longed to dunk the most English biscuit in my coffee. Boy! Boy! Free coffee for my friend here!\" The boy with the tray appears from nowhere and puts a small cup in front of you. It is more tar than coffee, and you are obliged to drink it. Your heart begins, at once, to knock on the inside of your ribs.";
+    }
+    const who = WORLD.npcs[npcId] ? WORLD.npcs[npcId].name : "They";
+    return who + " turns the biscuit over, regards it with deep suspicion, and hands it back, very much nonplussed.";
+  },
+
+  // GIVE BISCUIT TO THE DJINN: he is not an NPC, so the engine asks here.
+  giveBiscuitDjinn(state) {
+    if (state.currentRoomId !== "treasury") return null;
+    return "The Djinn inclines his turban a respectful inch. \"Most kind, traveller. However, we have no need for such treats in the spirit realm. I take my duties most seriously.\"";
+  },
+
   // ---- the Pharaoh ----
+  topicsFor(state, npcId) {
+    if (npcId === "oasisvendor" && state.flags.bootsWrecked && !state.flags.gotGermanBoots) {
+      return ["dates", "water", "trade", "boots"];
+    }
+    if (npcId === "pharaoh" && state.flags.pillarsAll) {
+      return ["yourself", "the pyramid", "the treasure", "the others", "Hart", "the school", "the rulers", "the curse", "the storm", "going home"];
+    }
+    return null;
+  },
+
   pharaohTopic(state, topic) {
     const f = state.flags;
     const t = topic.toLowerCase();
@@ -1389,8 +1537,30 @@ const GAME = {
       return out;
     };
     if (/return|home|leave|leaving|go back|choice|stay/.test(t)) {
-      state.choicePending = true;
-      return "\"Home is the question I came to ask you.\" He turns a little, so that the stars are behind him. \"Will you return?\"";
+      if (!f.pillarsAll) return this.endLuck(state);
+      if (f.offerMade) { state.choicePending = true; return "\"Will you return?\""; }
+      return this.pharaohOffer(state);
+    }
+    // What the player has learned: the school, and what was done to it. Told only to those who lit the pillars.
+    if (/school|teach|lesson|learn|sphere|knowledge|light|beam/.test(t) && !/hart|teacher|adeline/.test(t)) {
+      return f.pillarsAll
+        ? say("pillars", "\"A school,\" he says, as though the word had waited a long time to be used. \"I was not a king, and this was not a tomb. I was sent to teach, and this was the classroom. Four spheres, four lessons: the red for the body, and every sickness it can suffer; the green for everything that lives, and the balance each living thing keeps with the rest; the blue for the seas and the lands and everyone who lives in them, and the tongue under all tongues; the gold for how things work, from the lightning to the number. When all four were lit, the house sent a column of white light into the sky, so that anyone who wished to learn might find it. You saw it in your sleep. Tonight you have lit it again.\"")
+        : say("pillars", "\"There is a place beneath the house you did not visit. It is of no consequence. A house has cellars.\"");
+    }
+    if (/ambassador|ruler|trust|betray|hubris|palace|enslave|slave|fee|fees|killed you/.test(t)) {
+      return f.pillarsAll
+        ? "\"I taught the first rulers of this land all of it, and asked one thing in return: that they carry it out of the house, and give it away. They were to be my ambassadors. They were clever, and they were afraid, and they reasoned, quite beautifully, that knowledge is power, and that power given away is power lost. So they killed me, or the body I was wearing, which they thought was the same thing. They told the people I had left them in charge to finish my work. They took the spheres, and the light went out. After that it was a palace. They fed themselves and their families, and charged everyone else a fee, in treasure, for the privilege of being ruled. You have been through the vault. That is where the fees went.\""
+        : "\"That is a story for someone who has lit the lamps.\"";
+    }
+    if (/curse|mumm|courtier|siege|fled|flee|abandon|sickness|lamps held/.test(t)) {
+      return f.pillarsAll
+        ? "\"The spheres are not stupid. They are, in their way, patient. It took them some years to understand what was being done with what they had been given, and then they stopped being patient. The rulers died of something no physician could name, and none could have cured, because the cure was in the spheres, and the spheres were not telling. You have met them: they are the ones still holding the spheres. Their courtiers locked the dead rulers away behind doors and ropes, and quarrelled over what remained, and ran, before the people they had enslaved arrived at the gate. Almost no one lived. The few who did spread a rumour, and the rumour has kept the house well.\""
+        : "\"That is a story for someone who has lit the lamps.\"";
+    }
+    if (/storm|boundary|pure|soul|sank|sunk|sinking|rumou?r/.test(t)) {
+      return f.pillarsAll
+        ? "\"Those who were enslaved did not leave. They did what the dead can do, which is not much, and they did it for a very long time. A wall of wind, and sand in the wind, and noise: their laughter, which is not kind; their groaning, which is not exaggerated; and the sound of the gold, which they have never forgiven. They put it round the house so that no one could do here again what was done here, and so that no one who came for gold would leave. Only the pure of soul walk back out of it. The rest lose their way, which is, in the circumstances, quite merciful. And when the spheres stopped teaching, the house did what I built it to do: it drew itself down into the hollow that was cut for it, and the great doors closed over it, and the desert drifted over the doors. I asked for that. A school with no teachers should not be found by the wrong people.\""
+        : "\"That is a story for someone who has lit the lamps.\"";
     }
     if (/how far|distance/.test(t)) return say("far", "\"Not in distance.\"");
     if (/where|from|come from|origin/.test(t)) return say("where", "\"Far away.\"");
@@ -1403,7 +1573,7 @@ const GAME = {
     if (/mcdaniels|headless|victorian/.test(t)) return say("mcd", "\"The Victorian. He does ask, sometimes, whether anyone has found it. I tell him it is not my department.\"");
     if (/roman|soldier|rufus/.test(t)) return say("roman", f.remembered ? "\"Ah, you met him. He remembered his name. It has made him quite unbearable.\"" : "\"There is a soldier in the garden who has forgotten his own name. He would have liked a visitor.\"");
     if (/djinn|genie/.test(t)) return say("djinn", "\"My oldest friend and my worst employee. He enjoys the work. He tells me you were polite.\"" + (f.taxed ? " \"He says the tax was for your own good. It was also for his amusement.\"" : ""));
-    if (/pillar|orb|ring/.test(t)) return say("pillars", f.pillarsAll ? "\"An old courtesy. A way of leaving the lamps on. Do not ask what they are for. You would only choose a name for it, and names are how a mystery gets spoiled.\"" : "\"There is a place beneath the house you did not visit. It is of no consequence. A house has cellars.\"");
+    if (/pillar|orb|ring/.test(t)) return this.pharaohTopic(state, "school");
     if (/pearl/.test(t)) return say("pearl", f.swallowedPearl ? "\"The smallest one. Yes. It is yours. You were given it, and you swallowed it, and neither of those is theft.\"" : "\"You did not go down to the vault? The pearls are there still, I expect, and the Djinn will be rather hurt. He so enjoys the choosing.\"");
     if (/lift|rope|basket|balance|jar|sand/.test(t)) return say("lift", "\"Perfectly safe. It has been tried by experts.\"");
     if (/hart|teacher|adeline/.test(t)) return say("hart", "\"You carry her in your face when you are puzzled. I read faces. It is most of what remains of my trade. Someone taught you to ask what a thing is for before asking what it is worth. That is rarer than the pyramid.\"");
@@ -1412,17 +1582,40 @@ const GAME = {
   },
 
   endScore(state) {
-    return `\n\nFINAL SCORE: ${state.score}/${WORLD.maxScore}\n\n— THE END —`;
+    // A very low score means the player was lucky, or knew the way and took no detours.
+    const lucky = state.score < 500 ? "\n\n\"Luck is with you, effendi! There is always room at the museum for people with such skill!\"" : "";
+    return `${lucky}\n\nFINAL SCORE: ${state.score}/${WORLD.maxScore}\n\n— THE END —`;
+  },
+
+  // To someone who has learned everything the spheres teach: what they could do with it, and what it will cost.
+  pharaohOffer(state) {
+    state.flags.offerMade = true;
+    state.choicePending = true;
+    return "\"Home is the question I came to ask you.\" He turns a little, so that the stars are behind him. \"With what you now carry, you could go back a scholar such as your world has never seen. Cures for the Trustees' ailments. Harvests for the hungry. A tongue for every shore, and the arithmetic of the sun. They will praise you for it. And then they will want it, all of it, and knowledge that is wanted is sought, my friend, with a stick or with a carrot. Your world is very good with both.\"\n\n"
+      + "And you see it, unasked: a morning sky with a second sun in it, small and white and silent, and beneath it a city that was there a moment ago. Ash, drifting on a clean wind. You understand, with perfect and dreadful clarity, that the arithmetic in your head, in other hands, did that, and that you will be the one who is asked.\n\n"
+      + "\"Will you return?\"";
+  },
+
+  // The player escaped without lighting the pillars: no choice is offered, and nothing is learned.
+  endLuck(state) {
+    const f = state.flags;
+    state.choicePending = false;
+    f.gameOver = true; f.ended = true;
+    let t = "\"You have all the luck in the world, fellow traveller,\" says the Pharaoh, kindly, and without a trace of triumph, \"and none of its true knowledge. The light is knowledge.\" He turns his face to the stars, as a teacher does from a pupil who has not done the reading, and the stars close over the platform like water.";
+    t += "\n\nYou awake, as if from a dream, in Voss's tent, in the Valley of Forgotten Stones. The fire is ash. Your hands ache as though they had held a rope for an hour. The camel is regarding you from the doorway with the weary contempt of an animal that has been kept waiting, and to the east the sandstorm still roars along the ridge, and you have no umbrella. You have a very good story, no evidence, and a long walk.";
+    t += this.award(state, 10, "escaped the pyramid");
+    return t + this.endScore(state);
   },
 
   endYes(state) {
+    if (!state.flags.pillarsAll) return this.endLuck(state);
     const f = state.flags;
     state.choicePending = false;
     f.gameOver = true; f.ended = true;
     let t = "\"Then go. Tell the truth to nobody. They will not believe you, and those who do will come with sacks.\"";
     if (f.swallowedPearl) t += "\n\n\"BTW, you can keep the Djinn pearl as a souvenir. Pharaohs don't do poo.\"";
-    t += "\n\nCold sand. The smell of camel. The Valley of Forgotten Stones at first light, under a perfectly ordinary sky. The camel regards you with the contempt of an animal that has been kept waiting. Something rolls against your boot: an umbrella, bent but unbroken. You do not remember it being blown anywhere. You open it anyway.";
-    t += "\n\nPembroke wrote the book. It was the best-reviewed work of Egyptology in a generation, and it said nothing at all about what happened. It was dedicated \"to Adeline Hart, who said the treasure was never the point.\" Whitfield was released, the matter of the crate having been traced to a man he insisted he had never met. He kept the telegram, framed, and went on cataloguing, and a number of things continued to go missing from Cairo. The Trustees reinstated Pembroke's funding and never asked where anything had come from. Dr. Voss was recorded as lost in the desert. Nobody was told what really happened.";
+    t += "\n\nCold sand. The smell of camel. The Valley of Forgotten Stones at first light, under a perfectly ordinary sky. The camel brays and greets you with the extravagant indignity of an animal that has been kept waiting and has decided, on balance, to forgive you. The sandstorm is gone: the ridge is only a ridge, and on the far horizon, small and brown and unmistakable, hangs the smoke of Cairo. Something rolls up to your boot: an umbrella, bent but unbroken. You do not remember it being blown anywhere. You open it anyway.";
+    t += "\n\nYou have the cure for every sickness of the body, the order of every living thing, the tongue of every shore and the arithmetic of the sun, and behind your eyes a city is still ash, and a sky still has a second sun in it. Adeline Hart, who said the treasure was never the point, would have understood at once, and would have asked what it was for. You fold the umbrella, and climb onto the camel, and, for a long time, you do not decide.";
     t += this.award(state, 10, "went home");
     return t + this.endScore(state);
   },
@@ -1438,7 +1631,11 @@ const GAME = {
   },
 
   handleNo(state) {
-    if (state.choicePending && state.currentRoomId === "platform") return this.endNo(state);
+    if (state.choicePending && state.currentRoomId === "platform") {
+      if (!state.flags.pillarsAll) return this.endLuck(state);
+      if (!state.flags.offerMade) return this.pharaohOffer(state);
+      return this.endNo(state);
+    }
     return null;
   },
 
@@ -1449,7 +1646,8 @@ const GAME = {
     if (!state.inventory.includes("toothbrush")) return "You have nothing fine enough to get into the glyphs.";
     if (state.flags.stoneCleaned) return "It is as clean as a stone is going to get.";
     state.flags.stoneCleaned = true;
-    return "You work the bristles into the glyphs one by one, with the tender concentration of a man restoring a Rembrandt with a toothbrush. Centuries of grime lift in a fine grey dust. Along the bottom, where the writing was too small to see, a fourth line shows bright and sharp, and, now that you have the knack of it, it reads: I TEACH THE GUEST ALL THE WAY TO THE LAST DOOR. THERE, I AM LEFT BEHIND. You look at the Stone for a long moment. It is, after all, stamped with the pyramid mark like everything else the house keeps, but it is a teacher first, and a teacher is not left behind until the lesson is done. Keep it on until the last door."
+    return "You work the bristles into the glyphs one by one, with the tender concentration of a man restoring a Rembrandt with a toothbrush. Centuries of grime lift in a fine grey dust. Along the bottom, where the writing was too small to see, a fourth line shows bright and sharp, and, now that you have the knack of it, it reads: I TEACH THE GUEST ALL THE WAY TO THE LAST DOOR. THERE, I AM LEFT BEHIND. You look at the Stone for a long moment. It is, after all, stamped with the pyramid mark like everything else the house keeps, but it is a teacher first, and a teacher is not left behind until the lesson is done. Keep it on until the last door. And as the last of the grime lifts, the Stone wakes: a faint but reassuring glow runs along every groove of the carving, warm and amber as a banked fire, as if it had been waiting a very long time for someone to ask."
+      + (state.worn.has("rosetta") ? this.stoneVoice() : "")
       + this.award(state, 5, "cleaned the Stone");
   },
 
@@ -1476,17 +1674,28 @@ const GAME = {
     state.pendingSleep = false;
   },
 
+  // In the valley, what you have found in the sack counts as yours when you use it, whether or not you have picked it up.
+  herePossess(state, id) {
+    return state.inventory.includes(id) || (state.currentRoomId === "valley" && WORLD.rooms.valley.objects.includes(id));
+  },
+
   lightFire(state) {
     const f = state.flags;
     if (state.currentRoomId !== "valley") return "There is nothing here worth lighting a fire for.";
     if (f.entranceFound) return "It is morning, and the fire is a ring of cold ash. You have no more need of it.";
     if (f.nightFire) return "The fire is burning well.";
+    let took = "";
+    if (!state.inventory.includes("matches") && WORLD.rooms.valley.objects.includes("matches")) {
+      WORLD.rooms.valley.objects = WORLD.rooms.valley.objects.filter(i => i !== "matches");
+      state.inventory.push("matches"); state.inKit.add("matches");
+      took = "(You take the book of matches out of the sack first.)\n\n";
+    }
     const matches = state.inventory.includes("matches");
     const lamp = state.flags.lampLit && state.inventory.includes("lamp");
     if (!matches && !lamp) return "You have nothing to light it with. Voss left a stack of sacks, and men like Voss never travelled light.";
     f.nightFire = true;
     if (!WORLD.rooms.valley.objects.includes("flatstone")) WORLD.rooms.valley.objects.push("flatstone");
-    return "You scrape the ash aside, tear a strip off one of the sacks for tinder, and build the half-burnt logs up around it. "
+    return took + "You scrape the ash aside, tear a strip off one of the sacks for tinder, and build the half-burnt logs up around it. "
       + (matches ? "The first match dies in the still air. The second takes." : "You touch the lamp's flame to the sacking.")
       + " The flame hesitates, catches, and climbs, and a wavering circle of orange light pushes back the dark. Your camel lifts her head and shuffles a little closer to it.";
   },
@@ -1495,12 +1704,24 @@ const GAME = {
     const f = state.flags;
     if (state.currentRoomId !== "valley") return "There is nowhere here to boil water.";
     if (f.entranceFound) return "It is morning. The tea can wait for another life.";
-    if (!f.nightFire) return "You would need a fire to boil water.";
-    if (!state.inventory.includes("germantea")) return "You have no tea to brew.";
+    const english = state.inventory.includes("teabags");
+    if (!english && !this.herePossess(state, "germantea")) return "You have no tea to brew.";
     if (state.skin !== "clean") return "You have no clean water to brew it with.";
     if (f.teaBrewed) return "The tea is brewed already, and steaming in the mug.";
+    // The first instinct of an Englishman: put the kettle on. If there is no fire yet, you make one.
+    let lead = "";
+    if (!f.nightFire) {
+      const lit = this.lightFire(state);
+      if (!f.nightFire) return lit;
+      lead = lit + "\n\nA fire is, after all, only the means to a cup of tea.\n\n";
+    }
     f.teaBrewed = true;
-    return "You fill the enamel mug from your waterskin, set it on the stones at the edge of the fire, and drop in a German teabag. The water steams, darkens, and presently smells like a smoked ham in a library.";
+    f.teaEnglish = english;
+    if (english) {
+      state.inventory = state.inventory.filter(i => i !== "teabags"); state.inKit.delete("teabags");
+      return lead + "You fill the enamel mug from your waterskin, set it on the stones at the edge of the fire, and drop in one of Whitfield's English teabags. The water steams and darkens, and presently the whole valley smells, impossibly and wonderfully, of a Tuesday afternoon in Surrey.";
+    }
+    return lead + "You fill the enamel mug from your waterskin, set it on the stones at the edge of the fire, and drop in a German teabag. The water steams, darkens, and presently smells like a smoked ham in a library.";
   },
 
   enterTent(state) {
@@ -1532,13 +1753,13 @@ const GAME = {
     state.forceMove = "valley";
     return "You pull the canvas around you and close your eyes, and the valley dreams you.\n\n"
       + "Ghosts come to the edge of the firelight and stand there, patient, with their hands open. A column of Roman soldiers marches past without a sound, eyes front, and one of them, at the very end, looks at you and almost smiles. Gold pours across the sand like water, and drains away. Overhead the stars slide sideways, one by one, and rearrange themselves into a shape you almost recognise; and from the middle of the valley floor, thick as an oak and quite silent, a beam of light rises straight up into them.\n\n"
-      + "Something wet and whiskery nudges your ear. It is morning, thin and gold and cold, and the fire is a ring of ash. Your camel is standing over you, and she has had quite enough of waiting. She stalks across the valley to the foot of the jackal-ear ridge and begins to paw at one patch of sand, steadily, with the air of an animal who knows exactly what is under it. Under the sand there is stone: dressed, flat, and cut with a step. The top of a stair, going down."
+      + "Something wet and whiskery nudges your ear. It is morning, thin and gold and cold, and the fire is a ring of ash. Your camel is standing over you, and she has had quite enough of waiting. She stalks across the valley to the foot of the jackal-ear ridge and begins to paw at one patch of sand, steadily, with the air of an animal who knows exactly what is under it. Under the sand there is stone: a slab as wide as a street, dressed flat, and in it a ragged hole where the stone has cracked through, big enough for a man, and black as a well. An iron spike is driven into its lip, and from the spike a rope, stiff as an old bone, hangs down into the dark."
       + this.award(state, 10, "found the entrance");
   },
 
   freeze(state) {
     this.resetNight(state);
-    state.duneStage = 0; state.ridgePos = 0; state.thirst = 0; state.thirstShown = 0;
+    state.duneStage = 0; state.ridgePos = 0; state.stormMoves = 0; state.stormPath = []; state.thirst = 0; state.thirstShown = 0;
     state.forceMove = "dunes";
     return "You close your eyes, just for a moment. The cold comes in from the edges, gently at first, and then it is simply everywhere, and then it is nowhere, and you do not feel the dawn.\n\n"
       + "You come to with a gasp in the Shifting Dunes, flat on your back in warm, dry air, with your breath still smoking and every bone remembering a night that, apparently, did not happen. The camel is beside you, looking worried. Everything you carried is still with you. The dunes, smooth and patient, are waiting to be crossed again.";
@@ -1547,7 +1768,7 @@ const GAME = {
   cookMeat(state) {
     const f = state.flags;
     if (state.currentRoomId !== "valley") return "There is nothing here to cook on.";
-    if (!state.inventory.includes("tinmeat")) return "You have no meat to cook.";
+    if (!this.herePossess(state, "tinmeat")) return "You have no meat to cook.";
     if (!f.nightFire) return "You would need a fire.";
     if (!f.tinOpened) return "The tin is sealed. You would have to open it first.";
     if (f.meatCooked) return "The meat is cooked already, and waiting on its stone.";
@@ -1558,7 +1779,7 @@ const GAME = {
   // A night that ends badly: you come to back in the dunes, with everything you carried.
   nightDeath(state, text) {
     this.resetNight(state);
-    state.duneStage = 0; state.ridgePos = 0; state.thirst = 0; state.thirstShown = 0;
+    state.duneStage = 0; state.ridgePos = 0; state.stormMoves = 0; state.stormPath = []; state.thirst = 0; state.thirstShown = 0;
     state.forceMove = "dunes";
     return text + "\n\nYou come to with a gasp in the Shifting Dunes, flat on your back in warm, dry air, with your breath still smoking and every bone remembering a night that, apparently, did not happen. The camel is beside you, looking worried. Everything you carried is still with you. The dunes, smooth and patient, are waiting to be crossed again.";
   },
@@ -1595,21 +1816,24 @@ const GAME = {
       if (!state.inventory.includes("knife")) return "You have nothing to open it with.";
       if (tool && !/knife|penknife|blade|opener/.test(tool)) return "That won't open a tin.";
       state.flags.tinOpened = true;
-      return "The main blade of your penknife is snapped, but the little hooked tin-opener on its back is intact. You saw it round the lid with a squeal of old metal, and peel the lid back. The meat is dark, in a pale lake of fat, and smells of cellars, salt and iron.";
+      return (state.flags.knifeRepaired
+        ? "You work the penknife's little hooked tin-opener round the lid with a squeal of old metal, and peel the lid back."
+        : "The main blade of your penknife is snapped, but the little hooked tin-opener on its back is intact. You saw it round the lid with a squeal of old metal, and peel the lid back.")
+        + " The meat is dark, in a pale lake of fat, and smells of cellars, salt and iron.";
     }
     if (objId === "briefcase") {
       if (state.flags.caseOpened) return "The case is open already.";
       state.flags.caseOpened = true;
       if (!state.inventory.includes("telegram")) state.inventory.push("telegram");
       if (!state.inventory.includes("knife")) state.inventory.push("knife");
-      ["cairomap", "compass", "comb", "toothbrush", "aftershave"].forEach(id => { if (!state.inventory.includes(id)) state.inventory.push(id); });
-      return "The clasps spring open with the little sigh of a thing that has been opened too often. Under the blank requisition forms lie the things you packed in a hurry: your telegram, soft as cloth from being read on every day of the voyage; the penknife you have carried since Manchester, its main blade snapped at the hinge; a folded map of Cairo; a pocket compass; a comb; a toothbrush; and a bottle of aftershave from the ship's barber. You take them all.";
+      ["passport", "cairomap", "compass", "comb", "toothbrush", "aftershave"].forEach(id => { if (!state.inventory.includes(id)) state.inventory.push(id); });
+      return "The clasps spring open with the little sigh of a thing that has been opened too often. Under the blank requisition forms lie the things you packed in a hurry: your telegram, soft as cloth from being read on every day of the voyage; your passport, a little the worse for the voyage; the penknife you have carried since Manchester, its main blade snapped at the hinge; a folded map of Cairo; a pocket compass; a comb; a toothbrush; and a bottle of aftershave from the ship's barber. You take them all.";
     }
     if (objId === "umbrella") {
       if (state.currentRoomId === "ridge") {
         this.loseUmbrella(state);
-        state.ridgePos = 0;
-        let out = "You thumb the catch and the umbrella bursts open like a black flower. Atop the camel, the winds pull at your umbrella like a rough sail, and almost instinctively the camel requires no additional guidance, and proceeds with an eerie certainty. Head down, she lengthens her stride over ground you will never be able to retrace, the storm shrieking past on every side. Then the wind lets go of the umbrella and keeps it, and it wheels away over the ridge like a small black bird and is gone. The camel slows, snorts, and carries you down into a bowl of still, hot air." + this.ridgeAfter(state);
+        state.ridgePos = 0; state.stormMoves = 0; state.stormPath = [];
+        let out = "You thumb the catch and the umbrella bursts open like a black flower. Atop the camel, the winds pull at your umbrella like a rough sail, and almost instinctively the camel requires no additional guidance, and proceeds with an eerie certainty. Head down, she lengthens her stride over ground you will never be able to retrace, the storm shrieking past on every side. Then the wind lets go of the umbrella and keeps it, and it wheels away over the ridge like a small black bird and is gone. The camel slows, snorts, and carries you down into a bowl of tranquility, or as close as tranquility feels after a near-death experience." + this.ridgeAfter(state);
         if (!state.flags.sandstormSolved) {
           state.flags.sandstormSolved = true;
           out += this.award(state, 25, "followed the wind");
@@ -1681,6 +1905,12 @@ const GAME = {
     state.flags.umbrellaLost = true;
   },
 
+  // A death that sends the player all the way back to the hotel, with nothing kept. The engine does the reset.
+  hardDie(state, text, epitaph) {
+    state.hardReset = true;
+    return text + "\n\n*** YOU HAVE DIED ***\n\n" + epitaph + "\n\nEverything you carried, and everything you had done, is gone. You are back at the beginning.";
+  },
+
   die(state, text, epitaph) {
     state.flags.gameOver = true;
     return text + "\n\n*** YOU HAVE DIED ***\n\n" + epitaph + "\n\nType RESTART to begin again, or LOAD to return to your last save.";
@@ -1688,14 +1918,16 @@ const GAME = {
 
   inventoryExtras(state) {
     const lines = [];
-    if (state.flags.hasCamel) lines.push(state.riding ? "You are riding: Camel (" + (state.flags.camelDrank ? "watered" : "thirsty") + ")" : "Camel: waiting outside");
+    if (state.flags.hasCamel) lines.push(state.riding ? "You are riding: Camel (" + (state.flags.camelDrank ? "watered" : "thirsty") + ")" : (state.currentRoomId === "camp" ? "Camel: with the herd" : "Camel: waiting outside"));
     if (state.inventory.includes("dates") && state.dateCount > 0) lines.push("Dates in the basket: " + state.dateCount);
     if (state.stones > 0) lines.push("Date stones: " + state.stones);
+    if (state.inventory.includes("custardcreams") && state.biscuits > 0) lines.push("Custard creams in the packet: " + state.biscuits);
+    if (this.isBarefoot(state)) lines.push("You are barefoot.");
     return lines;
   },
 
   // ---- the camel: ridden wherever a camel can go, left outside where she cannot ----
-  rideable: ["tahrir", "camelmarket", "citygate", "docks", "desertroad", "oasis", "dunes", "camp", "ridge", "valley"],
+  rideable: ["tahrir", "camelmarket", "citygate", "docks", "desertroad", "oasis", "dunes", "ridge", "valley"],
 
   camelTransition(state, roomId) {
     if (!state.flags.hasCamel) return "";
@@ -1706,8 +1938,9 @@ const GAME = {
     }
     if (!ok && state.riding) {
       state.riding = false;
+      if (roomId === "camp") return "\nYou slide down from the camel and leave her to the goats and the host's water-trough. She gives you a look.";
       return ["stairway", "antechamber"].includes(roomId)
-        ? "\nYou slide down from the camel and leave her at the head of the stair. She sits down in the sand with the air of a camel who has seen this before."
+        ? "\nFar above you, tied to a spur of the ridge at the top of a rope you will not climb again, your camel sits down in the sand with the air of a camel who has seen this before."
         : "\nYou slide down from the camel and tether her outside. She gives you a look.";
     }
     return "";
@@ -1746,12 +1979,9 @@ const GAME = {
   },
 
   onTalk(state, npcId) {
-    // Whitfield briefs you in one go: the pyramid, Kasim, the glass, and the supplies. No need to know what to ask.
-    if (npcId === "curator" && (!state.flags.askedCuratorPyramid || !state.flags.hasSupplies)) {
-      const parts = [];
-      if (!state.flags.askedCuratorPyramid) parts.push(this.handleTopic(state, "curator", "pyramid"));
-      if (!state.flags.hasSupplies) parts.push(this.handleTopic(state, "curator", "supplies").replace('"Ah — that." He glances', "He glances"));
-      return parts.join("\n\n");
+    // Whitfield briefs you in one go, whatever you ask first: see curatorBriefing.
+    if (npcId === "curator" && !(state.flags.askedCuratorPyramid && state.flags.hasSupplies)) {
+      return this.curatorBriefing(state, false);
     }
     if (npcId === "teller" && !state.flags.gotFlute) {
       state.flags.gotFlute = true;
@@ -1788,10 +2018,13 @@ const GAME = {
     const base = (this.onEnterMain(state, roomId) || "") + this.camelTransition(state, roomId);
     let hint = "";
     const f = state.flags;
-    if (state.worn.has("rosetta") && this.stoneHints[roomId] && !f["hint_" + roomId]) {
+    if (this.stoneAwake(state) && this.stoneHints[roomId] && !f["hint_" + roomId]) {
       f["hint_" + roomId] = true;
       hint = "\nThe Stone murmurs in your head, in that tongue you have never learned and understand perfectly: \"" + this.stoneHints[roomId] + "\"";
-    } else if (state.inventory.includes("rosetta") && !state.worn.has("rosetta") && WORLD.rooms[roomId].dark && (state.stoneRemind || 0) < 3) {
+    } else if (state.worn.has("rosetta") && !f.stoneCleaned && this.stoneHints[roomId] && !f.stoneDullNoted) {
+      f.stoneDullNoted = true;
+      hint = "\nThe Stone hangs cold and dull against your chest. Whatever it might say, it is choked with grime and cannot say it.";
+    } else if (state.inventory.includes("rosetta") && f.stoneCleaned && !state.worn.has("rosetta") && WORLD.rooms[roomId].dark && (state.stoneRemind || 0) < 3) {
       state.stoneRemind = (state.stoneRemind || 0) + 1;
       hint = "\nThe Stone, in your pack, is silent. You have the odd impression that it would speak more clearly if it hung round your neck.";
     }
@@ -1821,6 +2054,11 @@ const GAME = {
     if (roomId === "hall" && !f.sawMummy) {
       f.sawMummy = true;
       return "Something shuffles in the dark at the far end of the hall, slow and dragging, and stops dead when your lamp turns toward it." + this.award(state, 5, "glimpsed something moving");
+    }
+    if (roomId === "antechamber" && !f.floorGone) {
+      f.floorGone = true; f.sealed = true; f.sealedPoints = true;
+      return ("\n\nBehind you, a deep grinding begins. You turn. The doorway looks out on the lamp-lit edge of the floor, and the floor, with the pale heaps of the explorers' bones still lying on it, is going down. Slowly, on some great slow screw of stone beneath it, with a long, patient hiss of sand, the whole twenty yards of it is sinking into the pitch dark: the lamp shows you its edge, and then its shadow, and then nothing. The sound of falling sand goes on for a very long time. When it dies, the doorway opens on a black square of emptiness, and there is no route back."
+        + this.award(state, 5, "was sealed in"));
     }
     if (roomId === "valley" && !f.reachedValley) {
       f.reachedValley = true;
@@ -1859,13 +2097,13 @@ const GAME = {
       state.duneBad = state.duneBad || {};
       // Only the wrong slopes sink you. The right way works whether or not you tested it: testing just tells you in advance.
       const sink = (known) => {
-        state.duneStage = 0;
-        return { text: (known
+        const t = known
           ? "You step out onto the slope you watched swallow your stone. It lets go at once, soft as porridge, and you go down: ankle, knee, waist, chest, with black beetles pouring over your arms and the light turning brown, then black, then nothing at all."
-          : "You step out onto the sand without trying it first. For a moment it holds. Then the whole slope lets go, soft as porridge, and you go down: ankle, knee, waist, chest, with black beetles pouring over your arms and the light turning brown, then black, then nothing at all.")
-          + "\n\nYou come to coughing sand on the Desert Road, flat on your back, with your camel regarding you down her long nose with the weary scorn of the overworked. The dunes lie to the west, smooth and quiet, as though nothing had happened.", moveTo: "desertroad" };
+          : "You step out onto the sand without trying it first. For a moment it holds. Then the whole slope lets go, soft as porridge, and you go down: ankle, knee, waist, chest, with black beetles pouring over your arms and the light turning brown, then black, then nothing at all.";
+        return { text: this.hardDie(state, t, "Ancient proverb: Test the sand with a stone, not with a foot.") };
       };
-      if (dir === "e") {
+      // Going back is always safe: east, or the reverse of the way you came (south from the second screen).
+      if (dir === "e" || (stage === 1 && dir === "s")) {
         if (stage === 1) { state.duneStage = 0; return { text: "You retrace your steps, and the dunes slump shut behind you.", describe: true }; }
         return { moveTo: "oasis" };
       }
@@ -1903,66 +2141,84 @@ const GAME = {
           t = "You gulp down the tea before you go, since it would only spill: hot, green, sweet, and astonishingly clear-headed."
             + this.award(state, 5, "drank the mint tea");
         }
-        state.ridgePos = 0;
+        state.ridgePos = 0; state.stormMoves = 0; state.stormPath = [];
         return { text: t, moveTo: "ridge" };
       }
     }
 
     if (room === "ridge") {
-      const pos = state.ridgePos || 0;
-      const seq = ["n", "n", "e", "e"];
-      if (dir === seq[pos]) {
-        if (pos === 3) {
-          state.ridgePos = 0;
-          let t = "At the last step the wind shifts, the storm lets go all at once, and the ground tilts gently down into a bowl of still, hot air.";
-          if (state.inventory.includes("umbrella")) {
-            this.loseUmbrella(state);
-            t = "At the last step the wind finds your umbrella and rips it out of your hands. It wheels away over the dunes like a small black bird, and is gone. Then the storm lets go all at once, and the ground tilts gently down into a bowl of still, hot air.";
-          }
-          t += this.ridgeAfter(state);
-          if (!f.sandstormSolved) { f.sandstormSolved = true; t += this.award(state, 25, "crossed Sandstorm Ridge"); }
-          return { text: t, moveTo: "valley" };
-        }
-        state.ridgePos = pos + 1;
-        const steps = [
-          "You turn the camel's back on both of the lovely lies and ride north, with the wind shoving you along from behind. The ridge falls away, and the wind scours the ground bare of anything to steer by.",
-          "North again, and the world has narrowed to a corridor of hissing sand. The wind keeps its hand between your shoulder blades, and the camel plods on, trusting it, and so do you.",
-          "You bear east, with the wind, which has swung round behind you, pushing the camel along like a hand between the shoulder blades."
-        ];
-        return { text: steps[pos], describe: true };
-      }
-      if (pos === 0) {
+      if (!["n", "s", "e", "w"].includes(dir)) return null;
+      state.stormPath = state.stormPath || [];
+      const moves = state.stormMoves || 0;
+      if (moves === 0) {
         if (dir === "e") return { moveTo: "camp" };
-        if (dir === "s") {
-          if (f.mintTea) return { text: "You know better. Dune-shadow and nothing more. You stay where you are." };
-          return { text: "You turn the camel toward the camels. The camels turn out to be dunes, and the dunes turn out to be a circle, and the circle ends at a familiar ridge of ochre rock.", describe: true };
-        }
-        if (dir === "w") {
-          if (f.mintTea) return { text: "No woman, no pool. Mint-cold and clear-headed, you decline to chase her." };
-          return { text: "You rein the camel after her, and she steps into the pool and the pool ripples away to plain sand, and the sand slopes, and slopes, and you find yourself back on the ridge with grit in your teeth.", describe: true };
-        }
+        if (dir === "s" && f.mintTea) return { text: "The tea has cleared your eyes: those are not camels, only dune-shadow, and you do not chase them. You stay where you are." };
+        if (dir === "w" && f.mintTea) return { text: "The tea has cleared your eyes: there is no woman and no pool. You decline to chase her, and stay where you are." };
       }
-      state.ridgePos = 0;
-      return { text: "You strike out against the wind, or across it, and wander the featureless sand until, with a lurch, the ridge rears up in front of you again. You have gone in a circle.", describe: true };
+      // A move into the storm. You have eight of them to find the way: the umbrella at any time, or north, north, west, west.
+      const names = { n: "north", s: "south", e: "east", w: "west" };
+      state.stormMoves = moves + 1;
+      state.stormPath.push(dir);
+      const m = state.stormMoves;
+      if (state.stormPath.slice(-4).join("") === "nnww") {
+        state.stormMoves = 0; state.stormPath = [];
+        let t = "At the last step the wind shifts, the storm lets go all at once, and the ground tilts gently down into a bowl of tranquility, or as close as tranquility feels after a near-death experience.";
+        if (state.inventory.includes("umbrella")) {
+          this.loseUmbrella(state);
+          t = "At the last step, a final, last haymaker of wind nearly topples you and the camel, and your umbrella bears the full brunt: ripped away from you and shot into an airborne speck in an instant. Pity. Good brolly, that. Then the storm lets go all at once, and the ground tilts gently down into a bowl of tranquility, or as close as tranquility feels after a near-death experience.";
+        }
+        t += this.ridgeAfter(state);
+        if (!f.sandstormSolved) { f.sandstormSolved = true; t += this.award(state, 25, "crossed Sandstorm Ridge"); }
+        return { text: t, moveTo: "valley" };
+      }
+      if (m >= 8) {
+        state.stormMoves = 0; state.stormPath = []; state.ridgePos = 0;
+        state.duneStage = 0; state.thirst = 0; state.thirstShown = 0;
+        return { text: "You bear " + names[dir] + ", or something like it, and the camel's next step finds no bottom. The sand is deep here, and shifting, and it simply opens: she screams, and sinks to her chest, her neck, and you with her, and the whole red roaring world goes brown, and then black. Somewhere above you, the laughter and the groaning and the chinking of gold all rise together into one great shriek of delight, and stop.\n\nYou come to on the edge of the oasis, flat on your back beside the pool, with the camel standing over you in a state of deep and well-founded reproach. The Oasis Vendor is peering down at you, cooking spoon in hand. \"The storm took you, my friend,\" he says. \"It takes many.\" Everything you carried is still with you.", moveTo: "oasis" };
+      }
+      const lead = m === 1
+        ? (dir === "n" ? "You ride into the storm, and the world ends a camel's length ahead of you."
+          : dir === "s" ? "You turn toward the camels. The camels dissolve into dune-shadow, and the dunes dissolve into the storm."
+          : dir === "w" ? "You rein after the woman. She smiles, and steps into the pool, and the pool ripples away to red, roaring air."
+          : "You turn back toward the camp, and the camp is not there.")
+          + " Behind you, the ridge is simply gone. "
+        : "You bear " + names[dir] + ", or something like it. ";
+      const steps = [
+        "You are lost in the sandstorm. The grit scours your face, and visibility is mostly zero: you can see your camel's ears, and not much else. " + (state.worn.has("sunglasses") ? "Your dark glasses swallow what little light there is." : "Without dark glasses, the flying sand is blinding, and you squint until your eyes stream."),
+        "You check the compass, but its needle spins, drifts, and spins again: it is useless. You could be riding in a circle, or in a straight line, or upside down.",
+        "You look for the sun, but there is no sun, only a brass-coloured roar, equally bright in every direction. The camel does not like this. She flattens her ears and snorts, and her pace turns reluctant.",
+        "Somewhere in the roar, things are making noises. Laughter first: low, delighted, cello-deep, the laughter of djinns. Under it, groans, many and long, the groans of people who worked until they dropped. And over both, the chink and slither of gold, coins poured from hand to hand. All of it rises and falls with the gusts, whisper-quiet one moment and loud as a ship's horn the next.",
+        "The camel stumbles. The sand under her feet has gone strange: soft, deep, shifting, running away from her hooves like water. She does not like it, and neither do you.",
+        "The sand is loose now, and deep. Each of the camel's steps goes in to the fetlock, then to the knee, and the laughter, the groans and the chinking gold are all close now, and all together, and very nearly in tune."
+      ];
+      const hint = state.inventory.includes("umbrella") && (m === 4 || m === 6) ? " Your closed umbrella tugs at its strap, as though the wind wanted it." : "";
+      return { text: lead + (m === 1 ? "" : steps[m - 2]) + hint };
     }
 
     if (room === "valley") {
       if (dir === "e") return { text: "You turn the camel toward the ridge, and the wall of flying sand rises up to meet you, red and roaring. Without your umbrella, going back through that would be suicide." };
       if (dir === "d") {
         if (!f.entranceFound) return { text: "There is no way down that you can find." };
-        if (!state.inventory.includes("lamp")) return { text: "You can't go down into that without a light. You will need a lamp." };
+        if (!state.inventory.includes("lamp")) {
+          return { text: this.hardDie(state,
+            "You tie the camel to a spur of the ridge, between two others that have been there a good deal longer than she has, and feel your way to the rope, because you have no light and no sense. You go over the edge.\n\n"
+            + "It is a darkness so complete that it has weight. You go down by touch alone, knot after knot, and an hour goes by without a single thing to see. Somewhere in the second half you remember everything you left behind: the lamp, the kit, the point of the whole exercise. You decide to turn back. You find that you cannot: there is no strength left in your arms to climb a single knot. Your fingers open, one at a time, as though someone had asked them politely. You fall.",
+            "Ancient proverb: Never go down farther than you can climb back.") };
+        }
         f.lampLit = true;
         if (f.weighed) {
-          return { text: "You tie the camel to a fallen block again and pick your way down over the broken bamboo, the lamp swinging.", moveTo: "stairway" };
+          return { text: "You tie the camel to a spur of the ridge again and go down the rope, the lamp swinging.", moveTo: "stairway" };
         }
         f.weighed = true;
         return {
-          text: "You tie the camel to a fallen block. She regards you with the sorrowful dignity of an animal that has seen this sort of thing before. You light the spare lamp, and its small gold circle holds back the dark.\n\n"
-            + "The stair begins with a floor of bamboo: rows upon rows of pale canes laid side by side across a gap, running away from you left to right into the gloom. You step onto them. They give a dry, whispering creak, then a crack, then another. The first canes you cross are thin as pencils and snap beneath your boots like bones, and you run, the lamp swinging, feeling each cane go as your foot leaves it. Then the canes under you are thick as wrists, and they hold.\n\n"
-            + "You stop, heart pounding, and look back. Behind you, where the thin canes broke, a ragged hole gapes in the matting. Through it red sand is trickling, a fine, deliberate thread, and below the hole a glass vessel set in a niche in the wall is catching every grain. It fills. There is a small click, and the glass seals itself, slides back into the stone, and is gone. Whatever that was, it seems to be finished with you.\n\n"
-            + "Then the rest of it goes. With a long, dry, tearing sigh the whole run of matting behind you gives way, cane after cane, and drops into the dark below, until where you ran there is only a gaping void of splintered bamboo. You raise the lamp. Beyond the void there is nothing: the dark has closed over the stair's mouth, with no sky, no sun and no sign of the ledge you stepped from. Whatever way out there is from here, it is not behind you."
-            + this.award(state, 5, "crossed the bamboo")
-            + (f.sealedPoints ? "" : (f.sealedPoints = true, f.sealed = true, this.award(state, 5, "was sealed in"))),
+          text: "You tie the camel to a spur of the ridge, between two others that have been there a good deal longer than she has. She regards you with the sorrowful dignity of an animal that has seen this sort of thing before, and now, has. You light the spare lamp, and its small gold circle holds back the dark.\n\n"
+            + "The hole is not a door. On the papyrus the doorway stood at the foot of the triangle, far below you, and this is only a crack: a ragged mouth in a slab of dressed stone as wide as a street, its lip worn smooth by ropes. An iron spike has been driven into the stone beside it, and from the spike a rope, stiff as an old bone and knotted at every arm's length, hangs into the dark. You test it. You go over the edge.\n\n"
+            + "It takes an hour. For the first stretch the shaft is narrow enough to brace against, and then the walls fall away, and there is nothing but rope and air and the sound of your own breathing coming back to you from a very long way off. Your palms go raw, then wet, then numb; your forearms become two bars of fire; your fingers stop being fingers and become hooks that you open and close on faith. You rest where you can, the rope looped round one thigh and the lamp jammed between your knees, turning slowly in the dark, and each time you let go a little less of you comes back to take hold again. Somewhere in the second half your hands pass beyond hurting into a white, trembling place, and you hang on by what feels like habit alone. "
+            + (state.inventory.includes("watch") ? "By your pocketwatch, it is an hour and ten minutes before the rope runs out." : "By the lamp's slow burn and the count of your own breaths, it is a little over an hour before the rope runs out.") + "\n\n"
+            + "Your boots find stone. You let go of the last knot, and your legs fold, and you sit for a long time in the lamp's small circle with your hands in your lap like two things that belong to someone else. When you can see again, you see the others: broken heaps of bone scattered across the stone, one after another, the skeletons of earlier explorers, whose hands were not up to the task. They fell the last stretch. You look at your own hands, and then you do not look at the bones for some time.\n\n"
+            + "Then you get to your feet, and raise the lamp, and the dark steps back, and keeps stepping back. You are standing on a floor of pale stone, perfectly cut, perhaps twenty yards on a side, and beyond its edge there is nothing at all: no wall, and no sand. High above, where your rope goes up out of the lamplight, the roof is not rock but dressed stone: two colossal leaves of it, meeting in a seam, and the hole you came through is a crack in one of them, no bigger than a keyhole in a cathedral door. They are doors, closed from outside, over a cave so vast that the lamp cannot find a single side of it. And in the middle of the cave, rising out of the dark exactly as the papyrus drew it, stands the pyramid. It was never buried. It was put away: the hollow was cut for it, and when the light stopped, it drew itself down into it, and the doors closed, and the desert drifted over the doors. Its black faces climb out of the lamplight at their steady, impossible angle, and at the foot of the nearest, eight broad steps rise from the edge of your floor to a low, square doorway.\n\n"
+            + "You walk toward them, and the floor walks with you. It gives, a finger's breadth, under your boot; and with the next step it gives another, and another, smooth and silent and deliberate, inch by inch. Beside the stair, set into the foot of the pyramid, a great glass jar is catching a thin red thread of sand that pours from a slot high in the wall, and every grain that falls into it lowers the floor a little further beneath you. It is a scale, you understand. The whole floor is a scale, and you are being weighed. You stand very still, and the sand falls, and the floor sinks, step by step, inch by inch, until at last, with a small, definite click, the thread of sand stops. The floor stops with it, level with the foot of the stair. The jar, brim-full, seals itself with a skin of wax, and slides back into the pyramid's flank, and is gone. Whatever it was weighing for, it seems to be satisfied."
+            + this.award(state, 5, "was weighed by the house"),
           moveTo: "stairway"
         };
       }
@@ -1974,8 +2230,17 @@ const GAME = {
         : "The Djinn's smoke thickens across the doorway south, and he does not look up from his nail. \"You may take one pearl, and only one. Do not offend the house by refusing its hospitality.\"" };
     }
 
+    // Eight steps up to the antechamber, and the floor that weighed you goes down behind you.
+    if (room === "stairway" && dir === "n") {
+      f.leftWeighing = true;
+      return { text: "You climb the eight steps, each one worn into a shallow bowl by feet that stopped coming long ago, and duck through the low doorway into a small, cold room.", moveTo: "antechamber" };
+    }
+    if (room === "antechamber" && dir === "s" && f.floorGone) {
+      return { text: "The doorway opens on nothing now. Where the floor was there is only a black square of drop, and, very faintly, a long way down, the hiss of sand still settling. There is no way back." };
+    }
+
     if (room === "stairway" && dir === "u") {
-      return { text: "You hold the lamp out over the edge. Below the gaping void there is only dark, and a faint rattle of canes still settling a long way down. The stair's mouth is gone from sight: there is no sky, no ledge and no rope, and nothing in reach you could climb. Whatever way out there is, it lies ahead, through the pyramid." };
+      return { text: "You hold the lamp up. The rope hangs out of the dark a very long way above, as far beyond your lamp as the sky. You look at your hands. You do not try. Whatever way out there is, it lies ahead, through the pyramid." };
     }
 
     if (room === "threshold" && dir === "n") {
@@ -2029,7 +2294,7 @@ const GAME = {
     if (room === "mirrors" && dir === "e") {
       if (!f.blockCut) return { text: "The grey block fills the doorway, solid as a mountain. Something very hot would be needed to get through it." };
       if (!f.doorUnlocked) return { text: "You walk the short cut passage to a heavy wooden door, black with age. In its centre is a keyhole in the shape of a small jackal's head. It is locked. A key would open it: UNLOCK DOOR." };
-      return { moveTo: "burial" };
+      return { moveTo: "reigns" };
     }
     if (room === "longdescent") {
       const st = state.descentStage || 0;
@@ -2106,12 +2371,69 @@ const GAME = {
     return null;
   },
 
+  // The Stone only works once it has been brushed clean.
+  stoneAwake(state) { return state.worn.has("rosetta") && !!state.flags.stoneCleaned; },
+
+  stoneVoice() {
+    return " The faraway voice is suddenly close, as clear as if someone stood at your shoulder, in the same tongue you have never learned and understand completely: \"Welcome, guest. Be at ease. We will teach you what you need.\"";
+  },
+
+  inventoryTag(state, id) {
+    return id === "rosetta" && state.flags.stoneCleaned ? "glowing faintly" : null;
+  },
+
+  // Barefoot: the boots were ruined and no others are on.
+  isBarefoot(state) { return !!state.flags.bootsWrecked && !state.worn.has("germanboots"); },
+
+  // The vendor's spare boots, handed over with the dates to a barefoot player (once).
+  vendorBoots(state) {
+    const f = state.flags;
+    if (!f.bootsWrecked || f.gotGermanBoots) return "";
+    f.gotGermanBoots = true;
+    state.inventory.push("germanboots");
+    state.worn.add("germanboots");
+    return "\n\nHis eyes drop to your bare feet. He disappears behind the stall and comes back with a pair of stout black boots, which he holds out like a man presenting a sleeping infant. \"German Army kit. Got these a couple of weeks ago in a trade. Wrong size for me, perfect for you, effendi. Do not lick them, eh?\" He laughs, a great wheezing laugh, and goes on laughing for rather longer than the joke deserves. You pull the boots on. They fit like a gift.";
+  },
+
+  handleWash(state, rest) {
+    const r = (rest || "").toLowerCase();
+    if (!/boot|shoe|feet|foot/.test(r)) return null;
+    if (state.worn.has("germanboots")) {
+      return state.currentRoomId === "oasis"
+        ? "You rinse the German boots in the shallows. The water does what it can, and gives up. Prussian leather, you assume."
+        : "They are perfectly clean, in a military way.";
+    }
+    if (state.flags.bootsWrecked) return "You have no boots left to wash. Your camel looks at your feet, and then, tactfully, away.";
+    if (state.currentRoomId !== "oasis") return "There is nothing here to wash them in.";
+    state.flags.bootsWrecked = true;
+    state.flags.urineBoots = false;
+    return "You hold your boots in the shallows to rinse the Desert Road off them. The water takes against them at once: the polish goes first, then the stitching, then the soles, and the uppers part company in your hands like wet pastry. The smell goes with them. You are standing barefoot in a puddle of leather soup, with a camel looking at you, and a cloud of mosquitoes, thwarted by the aftershave, looking on with what seems like sympathy.";
+  },
+
+  // LICK / TASTE
+  handleTaste(state, rest) {
+    const r = (rest || "").toLowerCase();
+    if (/boot/.test(r) && state.inventory.includes("germanboots")) {
+      return "You lick the boot. It tastes of leather, boot polish, a hundred miles of someone else's sweat and, underneath it, with a thoroughness you can only admire, a trace of something that is definitely not leather. Behind you the vendor, who has been watching with enormous interest, laughs until he has to sit down.";
+    }
+    return null;
+  },
+
+  // Things that are not clothes but can still be "worn": aftershave.
+  handleWearOther(state, objId) {
+    if (objId === "aftershave") return this.handleUse(state, "wear", "aftershave", "aftershave");
+    return null;
+  },
+
   handleWear(state, objId) {
+    if (objId === "germanboots") return "You pull on the German boots. They fit like a gift.";
     if (objId === "fez") return "You settle the fez on your head. It fits better than it has any right to.";
     if (objId === "sunglasses") return "The glare drops away. Cairo looks like a film of itself.";
     if (objId === "jacket") return "You shrug the jacket back on.";
     if (objId === "rosetta") {
-      let out = "You hang the stone around your neck on its leather cord. It is heavy and cold for a moment, and then warm, as if it had recognised you. The faraway voice is suddenly close, as clear as if someone stood at your shoulder, in the same tongue you have never learned and understand completely: \"Welcome, guest. Be at ease. We will teach you what you need.\"";
+      let out = state.flags.stoneCleaned
+        ? "You hang the stone around your neck on its leather cord. It is heavy and cold for a moment, and then warm, as if it had recognised you, and a faint, reassuring glow wakes in the grooves of the carving, like a lamp turned low in a window." + this.stoneVoice()
+        : "You hang the stone around your neck on its leather cord. It is heavy and cold, and it stays cold: a very old, very dirty piece of rock on a bit of string. Whatever it once said, the writing is too choked with grime to say it now.";
       if (!state.flags.wornStone) { state.flags.wornStone = true; out += this.award(state, 10, "wore the Stone"); }
       return out;
     }
@@ -2135,8 +2457,40 @@ const GAME = {
   },
 
   // SHOW / WAVE / HOLD / POINT / USE <item>
+  // SHOW <item> to someone who wants it: they say so, but nothing changes hands until you GIVE or TRADE it.
+  showItem(state, objId, npcId) {
+    const offer = this.tradeOffers.find(o => o.npc === npcId && o.pay === objId);
+    if (!offer) return null;
+    if (npcId === "oasisvendor" && objId === "wallet") {
+      return "\"Ha! A fine Indian wallet. With Indian money. Not so fine. But I am happy to trade the dates for it, if it pleases you, effendi.\"";
+    }
+    if (npcId === "kasim" && !state.flags.kasimProved) return this.kasimRefusal(state);
+    const lines = {
+      "rugdealer:pen": "The Rug Dealer's eyes go to the pen, and stay there. \"A silver pen, effendi? For that, I could find a fez. Hand it over, and I will find it faster.\"",
+      "dockvendor:jacket": "The Dock Vendor fingers the cuff with the tenderness of a man reading braille. \"English cloth. Good cloth. For dark glasses? Yes. Give.\"",
+      "bedouinhost:teabags": "The Bedouin Host holds the little packet to his nose and closes his eyes. \"English tea, guest, the kind in the little bags. For this I would make you mint tea until morning. Give it.\"",
+      "smith:knife": "The Blacksmith turns the knife to the light and tuts, delighted. \"A broken thing, at last. Give it here, effendi, and we shall see what can be done.\"",
+      "baldman:comb": "The Bald Man regards the comb with profound melancholy, and then, slowly, with something like hope. \"A comb. For me?\" He does not quite reach for it.",
+      "teller:tarot": "Her gold tooth flashes, and her hands stop shuffling. \"My Hanged Man! I would know that smug face anywhere. Do not tease an old woman, guest: give him here.\"",
+      "kasim:amulet": "Kasim holds out a hand for it, palm up, and then, remembering himself, takes the hand back. \"A scarab. Of course. 'Show me something I want,' I say, and you show me something I want. Do not show it. Give it.\""
+    };
+    return lines[npcId + ":" + objId]
+      || WORLD.npcs[npcId].name + " eyes it with open interest. \"Perhaps we can do business, effendi.\"";
+  },
+
   handleUse(state, verb, objId, rest) {
-    if (objId === "comb") {
+    if (objId === "passport") return this.showPassport(state, rest);
+    if (verb === "show") {
+      const here = this.roomNpcs(state);
+      const m = (rest || "").toLowerCase().match(/\b(?:to|at|for)\s+(.+)$/);
+      let npcId = m ? findNpcId(m[1]) : null;
+      if ((!npcId || !here.includes(npcId)) && here.length === 1) npcId = here[0];
+      if (npcId && here.includes(npcId)) {
+        const shown = this.showItem(state, objId, npcId);
+        if (shown) return shown;
+      }
+    }
+    if (objId === "comb" && verb !== "show") {
       return state.currentRoomId === "hotel"
         ? "You run the comb through your hair in front of the spotted mirror. The humidity wins, but you feel you have made a point."
         : "You run the comb through your hair. It does not help, but it is a comfort.";
@@ -2149,6 +2503,9 @@ const GAME = {
       return "You give your teeth a quick, defiant scrub. The taste of a very long voyage fades. A little.";
     }
     if (objId === "aftershave") {
+      if (/milestone/.test((rest || "").toLowerCase()) && state.currentRoomId === "desertroad") {
+        return "The aftershave was cheap, but it's not free. You reconsider. There is no amount of aftershave that will mask this smell. Welcome to Egypt!";
+      }
       const already = state.flags.scented;
       state.flags.scented = true;
       if (already) return "You are already smelling powerfully of limes and cloves. There is such a thing as too much.";
@@ -2177,8 +2534,9 @@ const GAME = {
     if (state.pendingSwing && !/^\s*(swing|yes|y)\b/i.test(raw)) state.pendingSwing = false;
     if (state.pendingJump && !/^\s*(jump|yes|y)\b/i.test(raw)) state.pendingJump = false;
     if (state.pendingSleep && !/^\s*(sleep|rest|doze|nap|yes|y)\b/i.test(raw)) state.pendingSleep = false;
+    if (state.camelJustFed && !/biscuit|custard|cream|feed|give/i.test(raw)) state.camelJustFed = false;
     // Thirst: every action in the desert dries you out. Drink (from the waterskin) before it gets worse.
-    if (this.desertRooms.includes(room) && !f.gameOver) {
+    if (this.desertRooms.includes(room) && room !== "camp" && !f.gameOver) {   // the camp is a rest stop: tea, shade and water
       if (room !== "valley" && !/^\s*(i|inv|inventory|score|help|save|load|look|l|restart)\b/i.test(raw)) {   // the night in the valley has its own pressures
         const shaded = state.umbrellaUp && state.inventory.includes("umbrella");
         state.thirstHalf = !state.thirstHalf;
@@ -2186,12 +2544,23 @@ const GAME = {
       }
       const t = state.thirst, shown = state.thirstShown || 0;
       if (t >= 24) {
-        state.thirst = 0; state.thirstShown = 0; state.duneStage = 0; state.ridgePos = 0; state.oasisClock = 0;
+        state.thirst = 0; state.thirstShown = 0; state.duneStage = 0; state.ridgePos = 0; state.stormMoves = 0; state.stormPath = []; state.oasisClock = 0;
         state.forceMove = "desertroad";
+        if (!state.riding) return "The world slides sideways, and the sand comes up to meet you, warm and soft and entirely without sympathy.\n\nYou come to on the Desert Road, flat on your back, with a mouthful of sand and the camel standing over you, looking, for the first time in your acquaintance, apologetic. Your waterskin is still at your hip, and you are, quite suddenly, willing to use it.";
         return "The reins slip from your fingers altogether, and the world slides sideways. The camel, with nobody to guide her, wanders off the firm ground onto a slope of loose sand, and it lets go beneath her: she sinks to her knees, to her chest, to her neck, with you on her back, and the whole slow, soft, silent slide of it closes over your head.\n\nYou come to on the Desert Road, flat on your back, with a mouthful of sand and the camel standing over you, looking, for the first time in your acquaintance, apologetic. The oasis, the dunes and everything beyond them are a long way west again. Your waterskin is still at your hip.";
       }
-      if (t >= 21 && shown < 3) { state.thirstShown = 3; return "Your sight narrows to a tunnel with sparkling edges, and the reins have slipped almost out of your hand. Beneath you the camel's ears swivel, uncertain, feeling the slack. If you do not drink now, she will choose her own way."; }
-      if (t >= 17 && shown < 2) { state.thirstShown = 2; return "The world tips, and rights itself, and tips again. Your fingers have gone stupid on the reins, and your lips have cracked. Your waterskin hangs warm and heavy at your hip. Drink."; }
+      if (t >= 21 && shown < 3) {
+        state.thirstShown = 3;
+        return state.riding
+          ? "Your sight narrows to a tunnel with sparkling edges, and the reins have slipped almost out of your hand. Beneath you the camel's ears swivel, uncertain, feeling the slack. If you do not drink now, she will choose her own way."
+          : "Your sight narrows to a tunnel with sparkling edges, and the waterskin at your hip seems a very long way off. If you do not drink now, you will soon not be making any more decisions.";
+      }
+      if (t >= 17 && shown < 2) {
+        state.thirstShown = 2;
+        return state.riding
+          ? "The world tips, and rights itself, and tips again. Your fingers have gone stupid on the reins, and your lips have cracked. Your waterskin hangs warm and heavy at your hip. Drink."
+          : "The world tips, and rights itself, and tips again. Your fingers have gone stupid, and your lips have cracked. Your waterskin hangs warm and heavy at your hip. Drink.";
+      }
       if (t >= 12 && shown < 1) { state.thirstShown = 1; return "The sun has found the back of your skull. Your tongue is thick in your mouth, and the horizon has begun, very gently, to sway. You ought to drink something." + (state.inventory.includes("umbrella") && !state.umbrellaUp ? " Whitfield's umbrella, held over you, would at least keep the sun off." : ""); }
     } else if (state.thirst) { state.thirst = 0; state.thirstShown = 0; }
     if (room === "oasis" && !f.gameOver) {
@@ -2284,6 +2653,19 @@ const GAME = {
     return null;
   },
 
+  // What each sphere teaches the player who seats it.
+  orbLesson(state, objId) {
+    const lessons = {
+      crimsonorb: "\n\nThen the red comes into you, and the world is the body. You know how it is made and how it fails: why a wound closes, why a fever breaks, why the blood runs where it runs and what it carries. You know the cure for every sickness of the human shell as you know the letters of your own name, as if every physician who ever lived had leaned over your shoulder at once.",
+      greenorb: "\n\nThen the green comes into you, and the world is one cloth, and every living thing is a thread in it. What to eat and what to leave, what to plant and where and when; how the hawk needs the field mouse, and the mouse the seed, and the seed the beetle, and the beetle the rot of a fallen tree; how to feed a city from land that scarcely feeds a village; how to care for every living thing, and why you must.",
+      blueorb: "\n\nThen the blue comes into you, and the world is water: the oceans and the continents, the life that fills them and the people who live along them, and every tongue they speak. Under all the tongues there is another, that is not made of words at all, and you could greet a dolphin, a Nubian herdsman and a heron in it, and be understood by all three.",
+      orb: "\n\nThen the gold comes into you, and the world is a machine, and you can see how it works: why the sun burns, how lightning might be led and kept, what makes a wire hum and a number a landscape you can walk across. It is a knowledge almost too large for a human mind, and you hold on to the edge of it with both hands, and do not let go."
+    };
+    let t = lessons[objId] || "";
+    if (state.placed.length === 1) t += " None of it is in a language you have ever learned, and you understand every word.";
+    return t;
+  },
+
   // PUT <item> IN/ON <target>. Return a string, or null for the generic refusal.
   handlePut(state, objId, targetWord) {
     targetWord = (targetWord || "").toLowerCase();
@@ -2296,12 +2678,13 @@ const GAME = {
       state.inventory = state.inventory.filter(i => i !== objId);
       state.inKit.delete(objId);
       state.placed.push(objId);
-      let out = "The orb drops into the socket as if it had been poured there. For a moment nothing happens. Then the glass ring takes the colour, the pulse in the stone quickens to a steady beat, and the pillar lights from the foot to a height you cannot see, the hum deepening into a chord."
-        + this.award(state, 12, "woke a pillar");
+      let out = "The orb drops into the socket as if it had been poured there. For a moment nothing happens. Then the glass ring takes the colour, the pulse in the stone quickens to a steady beat, and the pillar lights from the foot to a height you cannot see, the hum deepening into a chord.";
+      out += this.orbLesson(state, objId);
       if (state.placed.length === 4) {
         state.flags.pillarsAll = true;
-        out += "\n\nAs the last pillar lights, the four notes lock together into one great, low sound that you feel in every bone, and then, quite suddenly, it falls silent. Something, at the heart of the ring, has changed.";
+        out += "\n\nAs the last pillar lights, the four notes lock together into one great, low chord that you feel in every bone, and then, quite suddenly, the whole vast space goes white. A column of light, thick as an oak and then thicker, leaps from the heart of the ring up through the dark and out through the roof of the world, and you feel through the soles of your feet and the roots of your teeth the whole great weight of the pyramid begin to rise. Far above, with a sound like a mountain clearing its throat, the great doors begin to part, and sand pours through the widening seam in long, hissing curtains, like water from a surfacing whale. The floor leans, and lifts, and steadies. Then the light settles, and the hum goes on, but gently. Something, at the heart of the ring, has changed.";
       }
+      out += this.award(state, 12, "woke a pillar");
       return out;
     }
     if (objId === "glass" && /stand|tripod|ring/.test(targetWord) && state.currentRoomId === "mirrors") {
@@ -2464,7 +2847,7 @@ const GAME = {
     state.money -= p.price;
     state.flags.hasCamel = true;
     state.riding = true;
-    return p.line + `${p.price} piastres changes hands. The trader nods at an irritable-looking camel. \"She spits. Only sometimes.\" He makes her kneel, you climb aboard, and she rises under you in three alarming stages, until you are sitting far above the market with the dizzy feeling of being rather magnificent. She smells of hay and hot animal, and her coat is coarse and warm under your hands.`
+    return p.line + `${p.price} piastres changes hands. The trader nods at an irritable-looking camel. \"She spits. Only sometimes. She responds with great favour to treats, less so to the whip.\" He makes her kneel, you climb aboard, and she rises under you in three alarming stages, until you are sitting far above the market with the dizzy feeling of being rather magnificent. She smells of hay and hot animal, and her coat is coarse and warm under your hands.`
       + this.award(state, 15, "hired a camel");
   },
 
@@ -2535,7 +2918,7 @@ const GAME = {
         ? "You check your pocketwatch with a shaking hand: you have been in the storm for an hour and a quarter, though it feels like many hours more, and the shadows are growing long. "
         : "By the angle of the light, you judge that you have been in the storm well over an hour, though it feels like many hours more, and the shadows are growing long. ")
       + "You think to check your compass, but its needle spun, wandered and sulked the whole way across. The route you took would be impossible to trace back, let alone to chart.\n\n"
-      + "You crossed it in near-blindness, but you saw things in the flying sand: fragments of skeletons, human and camel, half-buried and scoured pale; momentary glints of forgotten metal in the desert floor; and, among the rushing of the wind, whispers that were not quite voices. It is no surprise that so few have come this way, and that the pyramid is still a ghostly rumour.";
+      + "You crossed it in near-blindness, but you saw things in the flying sand: fragments of skeletons, human and camel, half-buried and scoured pale; momentary glints of forgotten metal in the desert floor; and, among the rushing of the wind, laughter, groans and the chink of gold, some as quiet as whispers and some as loud as a ship's horn. It is no surprise that so few have come this way, and that the pyramid is still a ghostly rumour.";
   },
 
   desertRooms: ["desertroad", "oasis", "dunes", "camp", "ridge", "valley"],
@@ -2543,6 +2926,7 @@ const GAME = {
   // The Gate Guard says, in character, what the crossing still lacks. Matches the checks in tryLeaveCairo.
   gateReport(state) {
     const f = state.flags;
+    if (!f.hasCamel) return "The guard looks you over, and then looks past you, as if for the camel. \"I trust you're not going far with all your possessions,\" he says. \"Outside the city the walks are very long, perilous and the heat cannot be escaped, effendi. You will surely perish without assistance and a destination. Come back to me when you are ready.\"";
     const parts = [];
     parts.push(f.hasSupplies
       ? "That kit-bag will do for food and water; I know whose it is, and I have said nothing."
@@ -2570,6 +2954,9 @@ const GAME = {
     if (!state.flags.knowsLocation) missing.push("you don't actually know where you're going");
     if (!state.flags.hasCamel) missing.push("you don't have a camel");
     if (!state.flags.hasSupplies) missing.push("you're carrying no food or water for the crossing");
+    if (!state.flags.hasCamel) {
+      return { text: "The guard looks you over, and then looks past you, as if for the camel. \"I trust you're not going far with all your possessions,\" he says. \"Outside the city the walks are very long, perilous and the heat cannot be escaped, effendi. You will surely perish without assistance and a destination. Come back to me when you are ready.\"", blocked: true };
+    }
     return {
       text: "The guard doesn't move. \"West is desert,\" he says again, like it explains everything. "
         + "Might be worth admitting: " + missing.join(" and ") + ".",

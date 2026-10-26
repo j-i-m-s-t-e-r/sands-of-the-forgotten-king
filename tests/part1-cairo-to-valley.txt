@@ -23,6 +23,7 @@ show knife
 give comb to bald man
 buy amulet
 e
+show passport to kasim
 give amulet to kasim
 ask kasim about pyramid
 s
@@ -63,5 +64,5 @@ drink tea
 w
 n
 n
-e
-e
+w
+w

@@ -22,26 +22,37 @@ Type `HELP` in the game for the commands.
 | `docs/design-bible.md` | The design record: every decision, puzzle specification and fix, in order. |
 | `docs/ending-script.md` | The full Pharaoh dialogue and both epilogues. |
 | `docs/game-map.html` | A map of every room with what each involves (spoilers). Generated. |
-| `tests/` | A scripted playthrough that must finish on 1000/1000. |
-| `tools/` | The generator for the map page. |
+| `src/debug-route.js` | Generated. The full-score route, used by the `**debug` jump. Developer only: it is a complete walkthrough, so it is left out of the public build. |
+| `tests/` | A scripted playthrough that must finish on 1000/1000, a check of the debug jump, and a check of the rules set from play-testing (hard deaths, the Stone, the guard, the layout). |
+| `tools/` | The generators for the map page and for `src/debug-route.js`. |
 
 ## Checks and tools
 
 ```
-npm test             # plays the whole game headlessly; fails unless it ends on the maximum score
+npm test             # plays the whole game headlessly (must end on the maximum score), then checks the debug jump
 npm run build-map    # regenerates docs/game-map.html from the real room data
+npm run build-debug  # regenerates src/debug-route.js after the playthrough lists in tests/ change
+npm run package      # builds sands-itch.zip from src/, leaving out debug-route.js
 ```
+
+## Jumping to any room while you test
+
+Type `**debug : <room>` in the game (also `debug valley`, or `**debug list` for the room names) and
+you are taken to that room with the score and inventory a full-score playthrough would have by then,
+so you do not have to play through everything before it. It replays the route in `src/debug-route.js`
+silently. It only works when the page is opened from a file or from localhost, or when the address
+contains `?debug`; on a public site it is switched off.
 
 Run `npm test` after any change to the three game files. If you add points or move a puzzle,
 update the two command lists in `tests/` to match, and keep the maximum at 1000.
 
 ## Packaging for itch.io
 
-Zip the *contents* of `src/` (so `index.html` is at the root of the zip) and upload it as an
-HTML project:
+Zip the *contents* of `src/` (so `index.html` is at the root of the zip), leaving out the debug
+route, and upload it as an HTML project:
 
 ```
-cd src && zip -r ../sands-itch.zip . && cd ..
+npm run package
 ```
 
 ## Adding to the game

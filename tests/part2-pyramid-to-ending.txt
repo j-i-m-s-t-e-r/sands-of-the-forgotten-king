@@ -55,9 +55,6 @@ turn third mirror east
 put glass on stand
 unlock door
 e
-open sarcophagus
-get mask
-get orb
 e
 examine lintels
 play flute middle
@@ -70,8 +67,6 @@ get orb
 score
 s
 w
-get falcon
-s
 examine frieze
 s
 examine voss
@@ -94,7 +89,6 @@ n
 n
 n
 n
-n
 w
 s
 talk mummy
@@ -108,14 +102,11 @@ yes
 remove stone
 drop stone
 drop gold orb
-drop green orb
 drop crimson orb
 drop blue orb
 drop skull
-drop mask
 drop cup
 drop scarab
-drop falcon
 drop ingot
 drop ring
 drop collar
@@ -129,6 +120,11 @@ ask ghost about tablet
 ask ghost about votive
 ask ghost about the mark
 get all
+e
+open sarcophagus
+get mask
+get orb
+get falcon
 e
 turn star ring to jackal
 turn land ring to river

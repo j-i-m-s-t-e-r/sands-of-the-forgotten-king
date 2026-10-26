@@ -152,7 +152,8 @@ const WORLD = {
               : "You have nothing to test the ground with. The vendor at the oasis spent a date stone on sand just like this, and the beetles showed him everything he needed to know. "))
           + "You have been riding for two hours since the oasis. "
           + (state.inventory.includes("watch") ? "Your pocketwatch says five hours since Cairo. " : "The sun has crawled a long way across the sky since Cairo. ")
-          + (stage === 0 ? "Your own tracks lead back east." : "East is the way you came, for as long as the dunes allow.");
+          + (stage === 0 ? "Your own tracks lead back east." : "East is the way you came, for as long as the dunes allow.")
+          + (state.flags.hasCamel && state.inventory.includes("custardcreams") ? " Your camel stamps her foot, and gives your pocket a very meaningful look." : "");
       },
       exits: { e: "oasis", n: "dunes", s: "dunes", w: "dunes" },
       objects: ["body"],
@@ -170,23 +171,24 @@ const WORLD = {
     ridge: {
       name: "Sandstorm Ridge",
       desc: (state) => {
-        const pos = state.ridgePos || 0;
-        if (pos > 0) {
-          const lines = [
-            "You are in a shallow valley with no features at all. The walls of sand look the same on every side, and the sky is the colour of dirty brass. The wind, out of the south, pours steadily past you toward the north. The grit stings your cheeks and tastes of metal.",
-            "The valley goes on, as featureless as before, but the wind has swung round. It comes now out of the west, hard and steady, and the sand hisses past your ankles in the same direction, away to the east.",
-            "Still the same pale, shapeless valley. The wind, out of the west, has settled to a low, steady moan, and the light has gone the colour of weak tea."
+        const moves = state.stormMoves || 0;
+        if (moves > 0) {
+          const looks = [
+            "You are lost in the sandstorm. Visibility is mostly zero, the compass is useless, and the roar comes from everywhere at once.",
+            "There is no sun to steer by, only a brass-coloured roar, equally bright in every direction. Your camel flattens her ears, and does not like this at all.",
+            "You are lost. The grit scours your face and the compass spins and sulks, and somewhere in the noise, things are laughing, groaning and chinking.",
+            "The camel stumbles, and the sand under her feet is soft and deep. Laughter, groans and the chink of gold come and go with the gusts, whisper-quiet and then loud as a ship's horn."
           ];
-          return lines[pos - 1];
+          return looks[(moves - 1) % looks.length];
         }
-        let s = "The ridge is a knife-edge of ochre rock with the world coming apart on both sides of it. A sandstorm is gathering: the horizon has gone the colour of a bruise, the wind lifts grit that stings your cheeks, and everything tastes of metal and dust. The wind comes hard out of the south, pouring over the ridge and away to the north. The heat presses on your skull. ";
+        let s = "The ridge is a knife-edge of ochre rock with the world coming apart on both sides of it. A sandstorm is gathering: the horizon has gone the colour of a bruise, the wind lifts grit that stings your cheeks, and everything tastes of metal and dust. The wind comes from everywhere at once, tugging at you first one way and then another. The heat presses on your skull. ";
         if (state.flags.mintTea) {
           s += "Two things try to draw your eye. To the south, what looks like a line of camels is only dune-shadow, shifting. To the west, a woman and a shimmering pool that you know, with the cool clarity of mint, are not really there. ";
         } else {
           s += "Two things draw the eye. To the south, a line of camels plods across the dunes, their bells almost audible. To the west, a beautiful woman in white is about to step into a shimmering pool, and she glances back at you and smiles. ";
         }
         if (state.flags.advised && state.inventory.includes("umbrella")) s += "Follow the wind, the fortune-teller said, and nodded at the closed umbrella. ";
-        s += "The way back east is the camp.";
+        s += "Beyond the ridge the storm is a wall of red. The way back east is the camp.";
         return s;
       },
       exits: { e: "camp", n: "ridge", s: "ridge", w: "ridge" },
@@ -198,24 +200,24 @@ const WORLD = {
       name: "Valley of Forgotten Stones",
       desc: (state) => {
         const f = state.flags;
-        let s = "A long, bowl-shaped valley scattered with fallen blocks, hundreds of yards apart and half-drowned in sand, as if a giant had spilled a box of toys and wandered off. Look closely and the blocks are not natural: each has one face dressed flat, and all the flat faces tilt at the same steep angle, as though they once made a single vast sloping wall that has sunk to its shoulders in the sand.\n\n";
+        let s = "A long, bowl-shaped valley laid out in eerily close-to-man-made patterns of ridges: hardened sand and stones, some of them twenty feet tall, all running in the same few directions, as if the whole valley had been moved by some colossal bulldozer. Impossible here, of course. Down the middle of the valley, two great sweeps of them meet in a seam as straight as a ruled line.\n\n";
         if (f.entranceFound) {
-          return s + "It is morning. The sun is a pale coin on the rim of the valley, and the air is cold, still and clean, smelling of ash and damp stone. To the north rises a ridge shaped exactly like a jackal's ear. Beside the collapsed tent and the ring of cold ash at its foot, a patch of sand has been scraped away by a camel's hooves, and beneath it the top of a stair, black against the pale, leads down. Your camel stands beside it, with the air of an animal who has done her part.";
+          return s + "It is morning. The sun is a pale coin on the rim of the valley, and the air is cold, still and clean, smelling of ash and damp stone. To the north rises a ridge shaped exactly like a jackal's ear. Beside the collapsed tent and the ring of cold ash at its foot, a patch of sand has been scraped away by a camel's hooves, and beneath it a slab of dressed stone with a ragged hole in it, black against the pale, and a rope hanging into it. Around you the dead camels keep their patient rows. Your camel stands beside the hole, with the air of an animal who has done her part.";
         }
-        s += "It's now becoming dark. Here the air is deathly still and much cooler, smelling of damp stone and old dust, and the only sound is the tick of cooling rock. To the north rises a ridge shaped exactly like a jackal's ear, as the papyrus said. At its foot, someone made camp in a hurry and never came back: a collapsed tent, a weeks-extinguished fire, a stack of empty sacks, an enamel mug. Your camel crouches and lowers her head, exhausted from the sandstorm crossing.\n\nYou would now welcome the warm embrace of the Cairo sun, as you too are spent for the day. Time to start a fire, eat and sleep.";
+        s += "It's now becoming dark. Here the air is deathly still and much cooler, smelling of damp stone and old dust, and the only sound is the tick of cooling rock. To the north rises a ridge shaped exactly like a jackal's ear, as the papyrus said. At its foot, someone made camp in a hurry and never came back: a collapsed tent, a weeks-extinguished fire, a stack of empty sacks, an enamel mug. And everywhere, tethered to spurs of the ridges, stand the camels of earlier expeditions, or what the dry air has left of them: hides dried tight over the ribs like drumskins, lips drawn back from long yellow teeth, saddles still on. Every adventurer before you did exactly what you are about to do, and met the same fate, and so did their camels. Your camel crouches and lowers her head, exhausted from the sandstorm crossing. Your camel looks back at you, and makes a terrible noise. From both ends.\n\nYou would now welcome the warm embrace of the Cairo sun, as you too are spent for the day. Time to start a fire, eat and sleep.";
         if (f.nightFire) s += "\n\nA small fire crackles in the ring of stones, throwing a wavering orange circle against the dark. Your camel has shuffled closer to it.";
         if (f.nightTent) s += " You are sitting in the mouth of the tent, out of the wind.";
         return s;
       },
       exits: { e: "ridge", d: "stairway" },
-      objects: ["tent", "fire", "sacks", "mug", "page"],
+      objects: ["tent", "fire", "sacks", "mug", "page", "camelremains"],
       npcs: []
     },
 
     stairway: {
-      name: "Buried Entrance Stairway",
+      name: "The Weighing Floor",
       dark: true,
-      desc: "A steep stair of black stone drops into the hill, its steps worn into shallow bowls by feet that stopped coming long ago. The walls are not rock but dressed limestone laid in perfect courses, each block fitted so closely that no blade could enter, and they lean inward as they rise, all at the same steady angle: you are going in through the flank of something with four sloping sides, a pyramid buried to its tip. The air is cool, dry and tastes of old stone, and your lamp makes a small gold room in the dark. Behind you, where the bamboo floor ran, there is only a gaping void of splintered canes, and no daylight anywhere above it: the way you came in has gone. Somewhere ahead water ticks, once, and stops. The stair goes on north.",
+      desc: "A floor of pale stone, perfectly cut, perhaps twenty yards square, hangs in a darkness so large that your lamp cannot find its edges. Beyond the rim there is nothing: no wall, no sand, and no roof your lamp can reach. Rising out of the dark in front of you stands the pyramid, black and sheer, its faces lost overhead, and at its foot eight broad steps climb from the edge of the floor to a low square doorway. The air is cool, dry and tastes of old stone, and somewhere ahead water ticks, once, and stops. Pale heaps of bone lie scattered across the floor: the explorers whose hands were not up to the rope. Far above, too far to see, a rope hangs from a crack in the great stone doors of the roof, and you do not look at your hands. The way on is north, up the steps.",
       exits: { u: "valley", n: "antechamber" },
       objects: [],
       npcs: []
@@ -243,7 +245,7 @@ const WORLD = {
       name: "Hall of Offerings",
       dark: true,
       desc: (state) => {
-        let s = "A long hall lined with stone shelves and low altars crowded with offerings: a gold cup and a jeweled collar glint in your lamp among a clutter of lesser things too tarnished to name. Everything is cold and dry, and the air smells of old resin, myrrh and sealed things. A draught whispers down the length of the hall like someone breathing out. Against the far wall stands a stone sarcophagus";
+        let s = "A long hall lined with stone shelves and low altars crowded with offerings: a gold cup and a jeweled collar glint in your lamp among a clutter of lesser things too tarnished to name, and flecks of old gold leaf still cling to the cornice. Everything is cold and dry, and the air smells of old resin, myrrh and sealed things. A draught whispers down the length of the hall like someone breathing out. Against the far wall stands a stone sarcophagus";
         s += state.flags.openedSarc ? ", its lid pushed aside." : " with its lid a finger's width ajar.";
         s += " A passage leads on to the north.";
         return s;
@@ -322,7 +324,7 @@ const WORLD = {
     snakepit: {
       name: "Snake Pit",
       dark: true,
-      desc: "A round pit-room whose floor is a shallow bowl of sand and old bones, and whose walls are crowded with the carved coils of a thousand stone snakes. The air is warm and smells of dust, musk and dry skin, and something very long shifts in the dark with a sound like a rope being drawn over stone. Against the far wall stands a sarcophagus bound with thick, rotting ropes. The way back is west, and a doorway leads south.",
+      desc: "A round pit-room whose floor is a shallow bowl of sand and old bones, and whose walls are crowded with the carved coils of a thousand stone snakes, still faintly red where the paint has survived. The air is warm and smells of dust, musk and dry skin, and something very long shifts in the dark with a sound like a rope being drawn over stone. Against the far wall stands a sarcophagus bound with thick, rotting ropes. The way back is west, and a doorway leads south.",
       exits: { w: "flooded", s: "serpent" },
       objects: ["sarcophagus2", "ropes"],
       npcs: ["snake"]
@@ -363,7 +365,7 @@ const WORLD = {
         s += state.flags.blockCut ? ", and the cut passage leads east." : ".";
         return s;
       },
-      exits: { n: "scribe", e: "burial", s: "mummy" },
+      exits: { n: "scribe", e: "reigns", s: "mummy" },
       objects: ["mirrors", "block", "stand", "glyphs"],
       npcs: []
     },
@@ -372,14 +374,14 @@ const WORLD = {
       name: "Minor Noble's Burial Chamber",
       dark: true,
       desc: (state) => {
-        let s = "A small, square chamber, richly dull with age: painted walls showing the noble's life, a boat, a feast, a long line of servants, all faded to the colour of tea. The air is warm, close, and sweet with old resin and mouse, and your footfalls are swallowed by dust as thick as felt. ";
+        let s = "A small, square chamber, richly dull with age: painted walls showing the noble's life, a boat, a feast, a long line of servants, all faded to the green of old pond water. The air is warm, close, and sweet with old resin and mouse, and your footfalls are swallowed by dust as thick as felt. ";
         if (!state.inventory.includes("mask")) s += "On a low stone stand, a golden funerary mask looks at the ceiling with calm, empty eyes. ";
         s += state.flags.openedSarc28 ? "A sarcophagus lies open beside it. " : "A sarcophagus stands against the wall, its lid shut. ";
         if (!state.inventory.includes("falcon")) s += "A small lapis falcon glints on a shelf. ";
         s += "Doors lead west and east.";
         return s;
       },
-      exits: { w: "mirrors", e: "serpent", s: "reigns" },
+      exits: { w: "garden", e: "starchart" },
       objects: ["mask", "sarcophagus3", "falcon"],
       npcs: []
     },
@@ -388,7 +390,7 @@ const WORLD = {
       name: "Serpent Bridge",
       dark: true,
       desc: "A vaulted hall whose floor is a mosaic of coiled serpents, so lifelike that the gaps between them look like pits. Three stone doors stand side by side in the west wall, and above each, a snake is carved in a different pose: coiled low, reared at the middle, and stretched high. The air is warm, musky, and thick with the smell of dust and old shed skin, and the stones seem faintly to sigh. A path leads back north.",
-      exits: { n: "snakepit", w: "burial" },
+      exits: { n: "snakepit", w: "reigns" },
       objects: ["doors", "lintels"],
       npcs: []
     },
@@ -409,8 +411,8 @@ const WORLD = {
     reigns: {
       name: "Hall of Reigns",
       dark: true,
-      desc: "A long, lofty hall whose walls are one continuous carved frieze, a king's life from birth to death in thirty panels, painted once in reds and blues and now the colours of old tea. The air is cool, still and smells of beeswax and dust, and your footsteps go on a long way ahead of you. A great seated figure at the far end, hands on knees, has had its face chiselled smooth. Doors lead north and south.",
-      exits: { n: "burial", s: "treasury" },
+      desc: "A long, lofty hall whose walls are one continuous carved frieze, a king's life from birth to death in thirty panels, painted once in reds and blues and now the colours of old tea. The air is cool, still and smells of beeswax and dust, and your footsteps go on a long way ahead of you. A great seated figure at the far end, hands on knees, has had its face chiselled smooth. Doors lead west, east and south.",
+      exits: { w: "mirrors", e: "serpent", s: "treasury" },
       objects: ["frieze"],
       npcs: []
     },
@@ -459,7 +461,7 @@ const WORLD = {
         s += "The only way on is east.";
         return s;
       },
-      exits: { e: "starchart" },
+      exits: { e: "burial" },
       objects: ["blade2", "tablet", "votive"],
       npcs: []
     },
@@ -476,7 +478,7 @@ const WORLD = {
         s += " Doorways lead west and east.";
         return s;
       },
-      exits: { w: "garden", e: "echoes", n: "starchart" },
+      exits: { w: "burial", e: "echoes", n: "starchart" },
       objects: ["starring", "landring", "stardoor"],
       npcs: []
     },
@@ -487,7 +489,7 @@ const WORLD = {
       desc: (state) => {
         const pos = state.echoPos || "c";
         const at = { c: "the centre of the room", n: "the north wall", e: "the east wall", s: "the south wall", w: "the west wall" }[pos];
-        let s = "A perfectly round room, bare as an upturned bowl, with a floor of polished flagstones and a ceiling lost in the dark. Every sound you make comes back to you changed: your breath, the scuff of your boot, the tick of your lamp. The air is dry, still and cold, and smells of nothing at all. You are standing at " + at + ". A doorway in the north wall leads to the tunnel, and one in the west wall to the star chamber. You could walk to any of the four walls. ";
+        let s = "A perfectly round room, bare as an upturned bowl, its plaster a faded, cold blue, with a floor of polished flagstones and a ceiling lost in the dark. Every sound you make comes back to you changed: your breath, the scuff of your boot, the tick of your lamp. The air is dry, still and cold, and smells of nothing at all. You are standing at " + at + ". A doorway in the north wall leads to the tunnel, and one in the west wall to the star chamber. You could walk to any of the four walls. ";
         if (state.flags.echoOpen) s += "In the east wall, a narrow passage stands open.";
         return s;
       },
@@ -820,13 +822,14 @@ const WORLD = {
       name: "Milestone",
       aliases: ["milestone", "stone"],
       portable: false,
-      desc: "Rough limestone, warm as a loaf from the oven, the numerals worn as soft as soap: CAIRO 5. Somebody has scratched a camel into it, badly."
+      desc: (state) => "Rough limestone, warm as a loaf from the oven, the numerals worn as soft as soap: CAIRO 5. Somebody has scratched a camel into it, badly. Smells of a thousand types of dry urine."
+        + (state.flags.hasCamel ? " The camel agrees, pulling a face that expresses this better than any human could." : "")
     },
     pole: {
       name: "Telegraph Pole",
-      aliases: ["pole", "telegraph pole", "wires"],
+      aliases: ["pole", "telegraph pole", "wires", "bars", "ladder", "rungs"],
       portable: false,
-      desc: "Creosoted wood, splintery and faintly sticky in the heat, its wires thrumming like a held note. It is the last one. Past it, the news stops."
+      desc: "Creosoted wood, splintery and faintly sticky in the heat, its wires thrumming like a held note. Crude iron bars have been hammered into one side as a ladder, for a lineman or a lunatic. It is the last one. Past it, the news stops."
     },
     pool: {
       name: "Oasis Pool",
@@ -921,8 +924,10 @@ const WORLD = {
       hieroglyph: true,
       desc: (state) => {
         let s = "Carved panels crowd every wall. Under your fingertips the stone is cold and finely cut, the edges still crisp as the day they were made. They read like a story: a small figure steps over a threshold; a vast stone door falls behind him; and the same figure, shrunken and anxious, stands before a pair of scales while a jackal-headed god looks on. The hieroglyphs beneath the pictures are beyond you.";
-        if (state.worn.has("rosetta")) {
+        if (state.worn.has("rosetta") && state.flags.stoneCleaned) {
           s += " But the stone at your chest grows warm, and the signs slide into sense: THE HOUSE KEEPS WHAT IS THE HOUSE'S. THE THIEF IS WEIGHED. WALK LIGHTLY OUT.";
+        } else if (state.worn.has("rosetta")) {
+          s += " The stone at your chest hangs cold and dull, its writing choked with grime, and says nothing.";
         }
         return s;
       }
@@ -960,8 +965,8 @@ const WORLD = {
       noTakeMsg: "It would take twenty men and a very good reason.",
       desc: (state) => state.flags.openedSarc
         ? (state.flags.gotOrb1
-            ? "Open now. The mummy lies with its hands crossed on its chest, wrapped in brown linen as dry and fragile as a wasps' nest. Its hands are empty."
-            : "Open now. The mummy lies with its hands crossed on its chest, wrapped in brown linen as dry and fragile as a wasps' nest. Between its fingers, a sphere glows softly.")
+            ? "Open now. The mummy lies with its hands crossed on its chest, wrapped in brown linen as dry and fragile as a wasps' nest. Its hands are empty, and blackened to the wrist."
+            : "Open now. The mummy lies with its hands crossed on its chest, wrapped in brown linen as dry and fragile as a wasps' nest. Between its fingers, a sphere glows softly. The linen at its wrists is stained dark, and the skin beneath is cracked and black, as though something in the sphere had gone on working on it long after it died.")
         : "A stone sarcophagus, cold and gritty under your palm, its lid a finger's width ajar. Something inside whispers like dry linen when the draught moves. The lid is heavy, but it would move."
     },
     orb: {
@@ -986,7 +991,7 @@ const WORLD = {
       wearable: true,
       marked: true,
       desc: (state) => "A flat slab of dark stone the size of a dinner plate, cold and rough on the back and polished on the front, covered in three kinds of tiny writing. A cord of braided leather runs through a hole at the top, as though it has been worn before. A small pyramid is stamped in one corner."
-        + (state.flags.stoneCleaned ? " Along the bottom, where the grime has been brushed away, a fourth line shows bright and sharp: I TEACH THE GUEST ALL THE WAY TO THE LAST DOOR. THERE, I AM LEFT BEHIND." : " The finest of the glyphs are clogged with centuries of dust.")
+        + (state.flags.stoneCleaned ? " Along the bottom, where the grime has been brushed away, a fourth line shows bright and sharp: I TEACH THE GUEST ALL THE WAY TO THE LAST DOOR. THERE, I AM LEFT BEHIND. Every groove of the carving holds a faint, reassuring glow, warm as a lamp turned low in a window." : " The finest of the glyphs are clogged with centuries of dust, and the whole slab is dull and lifeless.")
     },
     rope: {
       name: "Thick Rope",
@@ -1069,7 +1074,7 @@ const WORLD = {
       portable: false,
       noTakeMsg: "It would take twenty men and a very good reason.",
       desc: (state) => state.flags.openedSarc25
-        ? (state.flags.gotOrb2 ? "Open and empty-handed. The mummy's crossed fingers hold nothing." : "Open. The mummy's crossed fingers hold a sphere that glows a deep, hot crimson.")
+        ? (state.flags.gotOrb2 ? "Open and empty-handed. The mummy's crossed fingers hold nothing, and are blackened to the knuckle." : "Open. The mummy's crossed fingers hold a sphere that glows a deep, hot crimson, and the fingers are blackened and split to the bone, as though they had held something that burned.")
         : (state.flags.cutRopes25
             ? "The ropes lie cut around it, but the lid is still shut."
             : "A stone sarcophagus bound round and round with thick, rotting rope, coarse and damp under your hand, knotted over the lid as though to keep something in.")
@@ -1164,7 +1169,8 @@ const WORLD = {
       hieroglyph: true,
       desc: (state) => {
         let s = "A band of tiny glyphs runs around the base of the hall, smooth and shallow under your fingers: a sun disc, then a road, then a sun disc, then more road. The meaning is beyond you.";
-        if (state.worn.has("rosetta")) s += " But the stone at your chest grows warm, and the signs slide into sense: THE SUN WALKS EAST, THEN SOUTH, THEN EAST AGAIN.";
+        if (state.worn.has("rosetta") && state.flags.stoneCleaned) s += " But the stone at your chest grows warm, and the signs slide into sense: THE SUN WALKS EAST, THEN SOUTH, THEN EAST AGAIN.";
+        else if (state.worn.has("rosetta")) s += " The stone at your chest hangs cold and dull, its writing choked with grime, and says nothing.";
         return s;
       }
     },
@@ -1183,7 +1189,7 @@ const WORLD = {
       portable: false,
       noTakeMsg: "It would take twenty men and a very good reason.",
       desc: (state) => state.flags.openedSarc28
-        ? (state.flags.gotOrb3 ? "Open. A stout mummy in fine linen, its hands empty." : "Open. A stout mummy in finer linen than the hall's, holding between its hands a sphere that glows a deep, cool green.")
+        ? (state.flags.gotOrb3 ? "Open. A stout mummy in fine linen, its hands empty and stained black to the wrist." : "Open. A stout mummy in finer linen than the hall's, holding between its hands a sphere that glows a deep, cool green. A dark, creeping stain runs up the linen at its wrists like ink in blotting paper.")
         : "A painted stone sarcophagus, smooth, cool and faintly sticky with old resin, the lid shut tight. It looks as though it was packed by someone who cared."
     },
     greenorb: {
@@ -1213,7 +1219,8 @@ const WORLD = {
       hieroglyph: true,
       desc: (state) => {
         let s = "Each lintel carries a carved snake and a short line of tiny hieroglyphs: the low one coiled tight, the middle reared with its hood spread, the high one stretched and swaying. The writing is beyond you.";
-        if (state.worn.has("rosetta")) s += " But the stone at your chest grows warm, and the signs slide into sense: THE LOW ONE IS HUNGRY. THE HIGH ONE IS ANGRY. THE MIDDLE ONE IS COURTEOUS.";
+        if (state.worn.has("rosetta") && state.flags.stoneCleaned) s += " But the stone at your chest grows warm, and the signs slide into sense: THE LOW ONE IS HUNGRY. THE HIGH ONE IS ANGRY. THE MIDDLE ONE IS COURTEOUS.";
+        else if (state.worn.has("rosetta")) s += " The stone at your chest hangs cold and dull, its writing choked with grime, and says nothing.";
         return s;
       }
     },
@@ -1260,7 +1267,10 @@ const WORLD = {
       hieroglyph: true,
       desc: (state) => {
         let s = "Thirty carved panels run the length of the hall, a king's life from the cradle to the throne to a very long, plain, undecorated ending. The stone is smooth and cool under your fingers, the figures small and lively. The hieroglyphs beneath them are beyond you.";
-        if (state.worn.has("rosetta")) {
+        if (state.worn.has("rosetta") && !state.flags.stoneCleaned) {
+          s += " The stone at your chest hangs cold and dull, its writing choked with grime, and says nothing.";
+        }
+        if (state.worn.has("rosetta") && state.flags.stoneCleaned) {
           s += " But the stone at your chest grows warm, and the signs slide into sense. PANEL ONE: ON THE NIGHT THE KING WAS BORN, THE JACKAL STAR STOOD OVER THE RIVER. PANEL TWELVE: HE ASKED FOR NO MONUMENT. HIS PEOPLE BUILT ONE ANYWAY. PANEL THIRTY: HE WENT AWAY, AND LEFT A DOOR.";
         }
         return s;
@@ -1401,7 +1411,7 @@ const WORLD = {
       portable: false,
       noTakeMsg: "It would take twenty men and a very good reason.",
       desc: (state) => state.flags.openedSarc4
-        ? (state.flags.gotOrb4 ? "Open. A mummy in blue-grey linen, its hands empty." : "Open. A mummy in blue-grey linen, a sphere of deep, cold blue glowing between its fingers.")
+        ? (state.flags.gotOrb4 ? "Open. A mummy in blue-grey linen, its hands empty and frost-black to the knuckle." : "Open. A mummy in blue-grey linen, a sphere of deep, cold blue glowing between its fingers, which are black with frost.")
         : (state.flags.cutRopes4 ? "The ropes lie cut around it, but the lid is shut." : "A narrow sarcophagus in the hidden recess, bound with thick black rope, cold and gritty under your hand, the lid shut tight.")
     },
     ropes4: {
@@ -1470,7 +1480,7 @@ const WORLD = {
       aliases: ["jar", "sand", "red sand", "glass jar"],
       portable: false,
       noTakeMsg: "It is fixed to the balance, and you suspect it is not for you to carry.",
-      desc: "A glass jar, sealed with wax, cool and smooth, full to the shoulder with fine red sand. It sits in one pan of the balance with the patient air of a thing that was filled very carefully, once, to a precise weight. You have seen this sand before: it ran through a hole in a bamboo floor, a long way above you, and was caught in glass."
+      desc: "A glass jar, sealed with wax, cool and smooth, full to the shoulder with fine red sand. It sits in one pan of the balance with the patient air of a thing that was filled very carefully, once, to a precise weight. You have seen this sand before: it poured from a slot beside a stair, a long way back, and was caught in glass while a floor weighed you."
     },
     balance: {
       name: "Wooden Balance",
@@ -1536,7 +1546,7 @@ const WORLD = {
           return base + "The needle will not settle. It turns, slowly and steadily, round and round, as though the place were pulling at it.";
         }
         if (r === "heart") return base + "The needle is spinning steadily, faster than you have ever seen a needle go, and the whole case hums faintly against your palm.";
-        if (r === "ridge" && (state.ridgePos || 0) > 0) return base + "The needle lurches, wanders, and settles with great confidence on the south-west. You are quite sure that is wrong.";
+        if (r === "ridge" && (state.stormMoves || 0) > 0) return base + "The needle lurches, wanders, and settles with great confidence on the south-west. You are quite sure that is wrong.";
         if (r === "ridge") return base + "The needle trembles uncertainly in the wind, and cannot quite make up its mind about north.";
         if (r === "valley") return base + "The needle turns slowly, round and round, as though something beneath the sand were pulling at it.";
         return base + "The needle trembles, and then settles on north, with all the stubbornness of a good Englishman.";
@@ -1620,6 +1630,34 @@ const WORLD = {
       noTakeMsg: "It is hot, and it is not going anywhere. It is your plate.",
       desc: "A flat grey stone the size of a dinner plate, pale on top and sooty underneath, lying at the edge of the fire. One side is warm to the touch and the other too hot to hold, which makes it, in the circumstances, a plate."
     },
+    camelremains: {
+      name: "Camel Remains",
+      aliases: ["remains", "camel remains", "dead camels", "dead camel", "carcasses", "carcass", "bones", "skeletons", "camel skeletons", "tethered camels"],
+      portable: false,
+      noTakeMsg: "You would rather not. They have been through enough.",
+      desc: "Six or seven camels, or what the dry air has left of them, each tethered to its own spur of the ridges by a rope that outlasted it. The hides have dried tight over the ribs like drumskins, papery and leathery under your fingertip, and the lips are drawn back from long yellow teeth. The saddles are still on, brittle and bleached. The smell is not rot but dust and old leather, and the only sound is the faint tick of a rope end in the wind. Every one of them waited for someone who went down and never came back. The newest wears a saddle blanket stamped with a Berlin saddler's mark, and has not quite finished drying."
+    },
+    germanboots: {
+      name: "German Army Boots",
+      aliases: ["boots", "german boots", "army boots", "german army boots", "boot"],
+      portable: true,
+      wearable: true,
+      desc: "Stout black leather, nailed soles, dubbed with a good deal of someone else's polish, and stamped inside the tongue with a German eagle and the date 1934. They smell of boot polish, sweat and, faintly and unsettlingly, cabbage."
+    },
+    passport: {
+      name: "Passport",
+      aliases: ["passport", "papers", "my passport", "travel documents"],
+      portable: true,
+      desc: "A navy-blue British passport, stiff at the spine and soft at the corners, stamped in three languages and smelling of ship's oil. HIS BRITANNIC MAJESTY'S PRINCIPAL SECRETARY OF STATE requests and requires, in the name of His Majesty, that all those whom it may concern allow the bearer to pass freely. In the photograph a younger, more hopeful Pembroke gazes at the lens as though it owed him money."
+    },
+    custardcreams: {
+      name: "Custard Creams",
+      short: "custard creams",
+      aliases: ["custard creams", "custard cream", "custard cream biscuits", "custard biscuits", "biscuits", "biscuit", "creams", "packet of biscuits"],
+      portable: true,
+      desc: (state) => "A crinkly packet of custard cream biscuits, pale gold, each one sandwiched with vanilla cream and embossed with a swirling pattern that has never meant anything to anyone. A small, absurd taste of England in a very large desert. Whitfield must have packed them himself. "
+        + (state.biscuits > 0 ? (state.biscuits === 1 ? "One is left." : state.biscuits + " are left.") : "The packet is empty.")
+    },
     umbrella: {
       name: "Umbrella",
       aliases: ["umbrella", "brolly"],
@@ -1647,9 +1685,9 @@ const WORLD = {
       room: "museum",
       desc: "Tweed in Cairo heat, with an old-fashioned hearing aid clipped to one ear and a wire running down to a battery in his waistcoat. He keeps tilting his good ear toward you, and the hearing aid whistles whenever he turns his head. He smells of pipe tobacco and camphor, and appears to be losing an argument with his own institution.",
       greet: (state) => (state.flags.askedCuratorPyramid && state.flags.hasSupplies)
-        ? "\"Pembroke. Still here? You ought to be gone. What more can I tell you?\""
+        ? "\"Pembroke. Still here? You ought to be gone. What more can I tell you? And do look in that bag.\""
         : "\"Pembroke. Thank God. Shut the door. I am, officially, cataloguing Ptolemaic pottery. Unofficially, I have been a good deal busier. Don't sit, there is no time. Listen.\"",
-      topics: ["pyramid", "voss", "supplies", "trustees"]
+      topics: ["pyramid", "Kasim", "Voss", "trustees"]
     },
     hassan: {
       firstMeet: "\"Are you with Voss, effendi? He drank my coffee for a week and paid me in promises. He tried to swindle me out of a month of gossip. I have not seen him lately.\"",
@@ -1669,11 +1707,13 @@ const WORLD = {
         : "\"For you, my friend — " + (localFez(state) ? "I see the fez, so a local price" : "special price") + ". The scarab's yours for " + spoken(GAME.priced(state, 20, 12).price) + " piastres, if you're buying. And watch your pockets, effendi — this Bazaar is full of clever hands.\"",
     },
     kasim: {
-      firstMeet: "\"Are you with Voss? He tried to walk out of here with a Ptolemaic seal up his sleeve. I have not seen him lately.\"",
+      firstMeet: "\"Are you with the German, Voss? He tried to walk out of here with a Ptolemaic seal up his sleeve. I have not seen him lately.\"",
       name: "Kasim",
       room: "antiquities",
       desc: "Tall, thin and immaculate in a white suit without a speck of dust on it, with a steely, unblinking gaze the colour of a gun barrel. He makes no sound at all when he moves, and smells faintly of beeswax and lemon oil. Doesn't trust much.",
-      greet: "\"I don't sell to tourists. Bring me something worth my trust, and we'll talk.\"",
+      greet: (state) => state.flags.kasimProved
+        ? "\"I don't sell to tourists. Bring me something worth my trust, and we'll talk.\""
+        : GAME.kasimRefusal(state),
       topics: ["pyramid"]
     },
     trader: {
